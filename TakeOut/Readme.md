@@ -1304,6 +1304,28 @@ public class LoginCheckFilter implements Filter {
 }
 ```
 
+<br>
+
+### 扩展: 测试类的问题
+SpringBoot中 测试类所在的包好像要和要测试的类所在的包一致
+
+当我们想定义一个跟项目无关的测试类时需要在 ``@SpringBootTest(classes = FeatureTest.class)`` 注解
+
+表示该测试类就是个普通的测试类
+
+```java
+@SpringBootTest(classes = FeatureTest.class)
+public class FeatureTest {
+  @Test
+  public void test01() {
+    AntPathMatcher matcher = new AntPathMatcher();
+    String url = "/backend/**";
+    boolean match = matcher.match(url, "/backend/index.html");
+    System.out.println("match = " + match);
+  }
+}
+```
+
 <br><br>
 
 # 功能: 新增员工
@@ -1333,4 +1355,743 @@ public class LoginCheckFilter implements Filter {
 **status字段:**  
 它的默认值是1, 0表示账号被禁用
 
+<br><br>
+
+## 功能流程分析
+1. 页面发送ajax POST请求, 将新增员工页面中输入的数据以JSON的形式提交到服务器 ``/employee``
+2. 服务器Controller接收页面提交的数据并调用Service将数据进行保存
+3. Service调用Mapper操作数据库, 保存数据
+
+<br><br>
+
+## 功能实现
+前端代码是现成的 我们实现Controller部分就可以
+
 <br>
+
+### Controller: save控制器方法
+1. 控制器方法上的 ``@PostMapping`` 注解不用指定 url  
+因为前台在发起 [添加员工] 的请求的请求地址为: /employee, 由于EmployeeController类上添加了 ``@RequestMapping("/employee")`` 注解 并指定了 前缀 /employee, 所以save控制方法上的 ``@PostMapping``就不用再指定路径了
+
+<br>
+
+2. 控制方法的返回值设置为 Result``<String>``  
+前端页面会根据code来判断是否添加员工成功 所以我们返回一个String就可以
+
+<br>
+
+3. 我们使用 Employee实体类 来接收前台发送过来的请求参数(JSON)
+
+<br>
+
+4. 在该Demo中, 我们会给新增用户赋初始密码  
+前端新增员工页面form里没有输入初始密码的表单项, 我们在这里给员工设置初始密码
+
+<br>
+
+5. 我们会为Employee实体类中的其他属性赋值, 如 createTime, updateTime 等
+
+<br>
+
+6. createTime的类型是LocalDateTime, 我们在Java层面给它赋值的时候使用的是 ``LocalDateTime.now()`` api, 2023-03-22T21:43:56.549
+
+<br>
+
+```java
+// 处理添加员工的请求, 请求路径是 /employee 类上指定了所以我们这里不用写了
+@PostMapping
+// 因为前端在判断用户是否添加成功的时候 使用的是 code, 所以我们回传给前端的Result里面放个String就可以
+public Result<String> save(@RequestBody Employee employee, HttpServletRequest req) {
+  log.info("新增员工, 员工信息: {}", employee.toString());
+
+  // password属性: 设置初始密码(md5加密): 前端新增员工页面form里没有输入初始密码的表单项, 我们在这里给员工设置初始密码
+  String pwd = DigestUtils.md5DigestAsHex("123456".getBytes());
+  employee.setPassword(pwd);
+
+  // status属性: 数据库中有默认值 可忽略
+
+  // createTime属性: LocalDateTime类型
+  // 获取当前系统时间(Java端的时间) 2023-03-22T21:43:56.549
+  employee.setCreateTime(LocalDateTime.now());
+
+  // updateTime属性: 跟新时间
+  employee.setUpdateTime(LocalDateTime.now());
+
+  // createUser: 添加员工的人 也就是当前用户, 传入session中的id
+  Long empId = (Long) req.getSession().getAttribute("employee");
+  employee.setCreateUser(empId);
+
+  // updateUser: 更新人 也是当前用户
+  employee.setUpdateUser(empId);
+
+  log.info("补充employee属性后的对象: {}", employee);
+
+  // 调用service层的方法
+  employeeService.save(employee);
+  return Result.success("新增员工成功");
+}
+```
+
+<br><br>
+
+# 全局异常处理器
+我们上面的逻辑还有一些不完善的地方, 比如第一次我们添加了一个zhangsan, 第二次我们再添加zhangsan的时候, 由于employee表中的username字段具有唯一约束
+
+所以我们重复添加的时候会抛出下面的异常
+```
+java.sql.SQLIntegrityConstranintViolationException: Duplicate entry 'zhangsan' for key 'username'
+```
+
+<br>
+
+此时对于该异常的捕获 我们有两种方式
+1. 在Controller方法中加入 try catch 进行异常捕获
+2. 使用异常处理器进行全局异常捕获
+
+<br>
+
+### 解决方式1: try catch
+```java
+try {
+  employeeService.save(employee);
+} catch (Exception e) {
+  Result.error("新增员工失败");
+}
+
+return Result.success("新增员工成功");
+```
+
+<br>
+
+### 解决方式2: 全局异常处理器
+我们统一进行处理, 不管哪个模块出现异常 我们统一在一个位置进行捕获
+
+**全局异常处理器的配置方式:**  
+1. com.sam.reggie.common.GlobalExceptionHandler 创建一个Java类
+
+2. 类上使用 @ControllerAdvice(annotations = {RestController.class, Controller.class}) 注解 进行标识  
+将该类标识为一个异常组件, **并使用annotations属性指明拦截 使用了@RestController 和 @Controller 注解的类**  
+
+3. 它是统一处理异常的类 我们的demo中遇到异常后 会向前端响应数据 所以我们在该类上添加 @ResponseBody 注解, 最终将JSON数据进行返回
+
+4. 类中定义处理 指定异常的方法, 方法上使用 @ExceptionHandler(SQLIntegrityConstraintViolationException.class) 注解 来指定该方法处理哪个异常, 处理方法中要声明该异常类型的形参(SQLIntegrityConstraintViolationException ex)
+
+5. api: ex.getMessage() 就是异常信息
+
+6. 我们要处理的逻辑, 如果是违反了唯一约束的异常 我们向前端返回 哪个字段违反了唯一约束 如 "zhangsan 已存在", 其它异常的话我们返回 未知错误
+
+```java
+package com.sam.reggie.common;
+
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.sql.SQLIntegrityConstraintViolationException;
+
+// 全局异常处理器, 使用annotations属性 拦截Controller层中使用了@RestController注解的类
+@ControllerAdvice(annotations = {RestController.class, Controller.class})
+// 使用该注解, 最终将JSON数据进行返回
+@ResponseBody
+@Slf4j
+public class GlobalExceptionHandler {
+
+  // 异常处理方法: 使用该注解 指明要对哪种异常进行处理
+  @ExceptionHandler(SQLIntegrityConstraintViolationException.class)
+  // 处理方法中要声明该异常类型的形参
+  public Result<String> exceptionHandler(SQLIntegrityConstraintViolationException ex) {
+    log.error("--- > ", ex.getMessage());
+
+    if(ex.getMessage().contains("Duplicate entry")) {
+      // 违反了唯一约束的异常
+      String[] strings = ex.getMessage().split(" ");
+      // 获取 "zhangsan" 部分的字符串 也就是哪个字段重复了
+      String msg = strings[2] + "已存在";
+      return Result.error(msg);
+    }
+
+    return Result.error("未知错误");
+  }
+}
+```
+
+<br>
+
+### 扩展: SQLIntegrityConstraintViolationException
+SQLIntegrityConstraintViolationException 是一个 Java 异常类，它表示当试图在数据库中插入、更新或删除数据时违反了某些完整性约束条件，例如主键、唯一键或外键限制，导致操作失败的异常。
+
+具体来说，当你尝试在数据库表中插入一条记录，而该记录的某些列值与表中已有记录的某些列值重复时，就会抛出 SQLIntegrityConstraintViolationException 异常。同样地，如果你试图更新或删除表中的某个记录，而这个记录被其他表所引用，或者它是一个主键或唯一键，就会抛出这个异常。
+
+当你捕获 SQLIntegrityConstraintViolationException 异常时，通常可以从异常消息或根本原因中获取更多信息，例如具体的违反约束的列和值，从而可以进一步调试和修复你的代码逻辑或数据库架构。
+
+<br>
+
+SQLIntegrityConstraintViolationException里面包含了很多sql的异常异常 不一定是我们想要捕捉的 
+
+比如我们demo中就是想要捕获 唯一约束的问题 所以我们对异常信息进行了字符串判断 和 截取
+
+如果是唯一约束的异常会有 Duplicate entry 字样
+
+```
+java.sql.SQLIntegrityConstranintViolationException: Duplicate entry 'zhangsan' for key 'username'
+```
+
+<br><br>
+
+# 员工信息分页查询
+员工管理页面的数据列表
+
+<br>
+
+## 需求分析
+
+### 展示列表: 分页处理
+系统中的员工如果在一个页面中全部展示出来会显得比较乱, 不便于查看, **所以一般的系统中会以分页的方式来展示列表数据**
+
+<br>
+
+### 员工查询: 分页处理
+可能我们查询到的员工太多, 所以在查询的时候我们也需要做分页的处理
+
+<br><br>
+
+## 梳理程序的执行过程
+1. 页面发送ajax请求, 将分页需要的查询参数(page, pageSize, name) 提交到服务器, 如果我们没有输入name的值 它会是undefined  
+axios在发送请求的时候 会将请求参数进行JSON.stringify()进行处理, 如果name的值为undefined, 相当于该次请求没有携带name参数, name参数会被忽略掉
+
+```js
+// 分页查询 / 查询用户
+{
+  page: 1,
+  pageSize: 10,
+  name: 张三 | undefined
+}
+```
+
+2. 服务端Controller接收页面提交的数据 并调用service查询数据
+
+3. service调用mapper操作数据库, 查询分页数据
+
+4. Controller将查询到的分页数据响应给页面
+
+5. 页面接收到分页数据并通过ElementUI的Table组件展示到页面上
+
+<br>
+
+### 前端页面相关逻辑
+后台管理页面会在 created 周期中 调用 init() 方法, 该方法中会发送 get请求, 请求地址: /employee/page
+
+<br>
+
+**要点:**  
+1. 当name的值为undefined的时候, axios在发送请求时 会忽略name参数, 详情就是JSON.stringify会忽略undefined类型的参数
+
+2. 前端需要在data中获取如下的数据, 所以我们在返回数据的时候也需要组织好这些数据
+```js
+data: {
+  code: "",
+  records: "",
+  records: "",
+  total: ""
+}
+```
+
+```js
+async init () {
+  // 整理请求参数
+  const params = {
+    page: this.page,
+    pageSize: this.pageSize,
+    name: this.input ? this.input : undefined
+  }
+
+  // 调用接口, 判断 code
+  await getMemberList(params).then(res => {
+    if (String(res.code) === '1') {
+      this.tableData = res.data.records || []
+      this.counts = res.data.total
+    }
+  }).catch(err => {
+    this.$message.error('请求出错了：' + err)
+  })
+}
+```
+
+<br><br>
+
+## 逻辑实现
+分页查询会使用MyBatis-Plus提供的分页插件 它可以简化分页查询的代码量
+
+<br>
+
+### 分页插件的配置
+```java
+package com.sam.reggie.config;
+
+import com.baomidou.mybatisplus.annotation.DbType;
+import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
+import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+// 配置mp的分页插件
+@Configuration
+public class MyBatisPlusConfig {
+
+  // 将 MybatisPlusInterceptor 对象交给IOC容器管理, 作用: 用于配置MyBatis的插件
+  @Bean
+  public MybatisPlusInterceptor mybatisPlusInterceptor() {
+    // 1. 创建 MyBatis-Plus 的插件容器
+    MybatisPlusInterceptor mybatisPlusInterceptor = new MybatisPlusInterceptor();
+
+    // 2. 创建分页插件对象 传入MysqlDB
+    PaginationInnerInterceptor paginationInnerInterceptor = new PaginationInnerInterceptor(DbType.MYSQL);
+
+    // 3. 将插件添加到插件容器中
+    mybatisPlusInterceptor.addInnerInterceptor(paginationInnerInterceptor);
+
+    return mybatisPlusInterceptor;
+  }
+}
+
+```
+
+<br><br>
+
+## Controller层: 创建控制器方法
+该方法用于接收前端发送的分页请求, 从前端获取 page, pageSize, name 等参数
+
+前端页面有两种情况会发送请求:
+
+<br>
+
+**1. 前端页面刷新:**  
+这时前端会发起 /employee/page get请求, 请求分页数据 会携带如下的参数
+1. page
+2. pageSize
+
+<br>
+
+**2. 员工管理页面, 输入员工姓名 点击查询按钮**  
+这时前端会发起 /employee/page get请求, 在按照name搜索的同时 请求分页数据 会携带如下的参数
+1. page
+2. pageSize
+3. name
+
+<br>
+
+page 和 pageSize 有默认值 为1, 10
+
+<br>
+
+### 要点:
+**1. 控制前方法的返回值泛型 我们传入什么?**  
+Result``<Page<Employee>>``, 泛型不是想传递什么就是什么 我们需要查看前端需要什么数据
+
+比如Demo中其阿奴单需要的是数据是 code, records, total 所以我们不能放Employee
+
+我们要传入Page对象, 该对象中封装着records 和 total 等分页相关的呃数据
+
+<br> 
+
+**2. 控制器方法中形参接收前端参数**  
+前端发起请求是通过url携带了 page pageSize name等参数 所以我们直接在形参中接收参数就可以
+
+前端如果没有传递name的值, 那么Java端在接收的时候name的值就是null
+
+<br>
+
+**3. 返回分页数据**  
+返回分页数据 我们使用的是 employeeService.page() 方法 该方法需要两个参数
+1. page对象
+2. queryWrapper对象
+
+所以在使用该方法前我们需要创建这两个对象
+
+<br>
+
+**要点:**  
+我们前端有可能会传进来name参数, 如果传入进行我们就需要在sql中拼接 name like "条件" 
+
+如果没有传入则不拼接到sql中, 这里我们可以使用queryWrapper对象中带有 condition 参数的方法 
+
+当满足该条件的时候 再往sql中拼接改字段信息
+
+<br>
+
+**要点2:**  
+- org.apache.commons.lang.StringUtils
+- com.baomidou.mybatisplus.core.toolkit.StringUtils;
+
+上面的两个包中都有判断参数是否为空的方法 我们可以使用
+
+<br>
+
+**要点3:**  
+``employeeService.page(pageInfo, queryWrapper);``方法不需要创建返回值接收
+
+```java
+// 处理分页请求的方法
+// Result<>的泛型中要传什么? 我们前端需要的数据是 code, records, total, 所以我们不能放Employee, 因为Employee中没有这些属性
+// 我们要传入Page对象, 该对象中封装着 records 和 total 等分页相关的数据
+// 泛型不是随便来的 它需要跟页面配合 页面需要什么数据 我们就传入什么数据
+// 形参的参数: page: 1, pageSize: 10, name: undefined
+@GetMapping("/page")
+public Result<Page<Employee>> page(int page, int pageSize, String name) {
+
+  // 1. 构造分页构造器: 告诉MyBatis我们要查询哪页 查询几条
+  Page pageInfo = new Page(page, pageSize);
+
+  // 2. 构造条件构造器: 如果传递了name 就要拼接到sql中
+  LambdaQueryWrapper<Employee> queryWrapper = new LambdaQueryWrapper<>();
+  // org.apache.commons.lang.StringUtils isNotEmpty
+  queryWrapper.like(StringUtils.isNotBlank(name), Employee::getName, name);
+
+  // 添加排序条件: 根据更新时间来进行排序
+  queryWrapper.orderByDesc(Employee::getUpdateTime);
+
+
+  // 3. 执行查询: employeeService.page()方法不需要返回值, 当它查询完后 会直接将数据封装到pageInfo对象中 我们不用再次接受返回值
+  employeeService.page(pageInfo, queryWrapper);
+
+  return Result.success(pageInfo);
+}
+```
+
+<br>
+
+### 前端接收到的数据格式:
+上面我们将 Page对象 响应回了前端, page对象中封装了分页数据 我们看看返回数据的格式是什么样的
+
+我们能看到 page对象就是data变量的右边的部分
+
+```js
+{
+  "code": 1,
+  "msg": null,
+  "data": {
+    "records": [
+      {
+        "id": 1638529636642578434,
+        "username": "lisi",
+        "name": "李四",
+        "password": "e10adc3949ba59abbe56e057f20f883e",
+        "phone": "13888888888",
+        "sex": "1",
+        "idNumber": "202009101000110909",
+        "status": 1,
+        "createTime": "2023-03-22T22:14:42",
+        "updateTime": "2023-03-22T22:14:42",
+        "createUser": 1,
+        "updateUser": 1
+      }
+    ],
+    "total": 3,
+    "size": 10,
+    "current": 1,
+    "orders": [],
+    "optimizeCountSql": true,
+    "hitCount": false,
+    "countId": null,
+    "maxLimit": null,
+    "searchCount": true,
+    "pages": 1
+  },
+  "map": {}
+}
+```
+
+<br><br>
+
+# 启动/禁用 员工账号
+
+## 需求分析
+在员工管理列表页面 可以对某个员工账号进行启动或者禁用操作
+
+1. 账号禁用的员工不能登录系统
+2. 账号正常的员工可以登录系统
+
+<br>
+
+### 注意:
+只有管理员(admin用户)可以对其它普通用户进行启用 禁用等操作 所以普通用户登录系统后启动 禁用按钮不显示
+
+<br><br>
+
+## 前端逻辑
+前端在展示页面的时候 如果是管理员身份 会有启动 和 禁用的按钮 这里是怎么做到的？
+
+用户在登录成功后 会往localstorage里面存放该用户在employee表中的信息
+
+其中username就是登录系统的账号, 我们从localstorage将userInfo取出来 查看 username 这个属性 根据这个属性是否是admin来展示对应的结构
+
+<br><br>
+
+## 梳理执行过程
+1. 页面发送ajax请求 将参数 (id, status) 提交到服务器
+2. 服务端Controller接收页面提交的数据 并调用service更新数据
+3. service调用mapper操作数据库
+
+<br>
+
+### 请求信息
+前端在点击 启用/禁用 按钮时会发起请求
+- 请求地址: /employee
+- 请求方式: put
+- 请求参数: id and status
+
+<br><br>
+
+## 后台逻辑:
+我们在controller类中 定义 update()方法 来处理
+- 启用/禁用 员工状态
+- 编辑 员工信息
+
+这里是一个控制器方法来处理两种请求, 因为两种请求都是对数据的修改操作 所以可以放在一个控制器方法中
+
+<br>
+
+### 要点:
+1. 接收前端请求的参数 我们使用 Employee 对象来接收
+
+2. 前端发起的是put请求, 接收参数的时候我们需要使用 
+@RequestBody注解
+
+3. Employee对象中没有赋值的属性会是null, 如果是null我们做更新的时候该属性对应的字段是不会被修改的
+
+4. 我们在做更新操作的时候, 需要设置Employee实体类中的 updatTime 和 updateUser 属性的值, 设置更新时间 和 更新人
+
+<br>
+
+### 代码部分:
+```java
+// 根据员工id修改员工的信息
+@PutMapping
+// 返回值泛型: 前端页面需要用到code判断 不需要其它的数据
+public Result<String> update(Employee employee, HttpServletRequest req) {
+
+  // 要点: 在做更新操作的时候 我们需要为employee对象中的updateTime updateUser 这两个属性进行赋值 更新时间 和 更新人
+  employee.setUpdateTime(LocalDateTime.now());
+
+  Long id = (Long) req.getSession().getAttribute("employee");
+  employee.setUpdateUser(id);
+
+  // 调用service修改数据库数据
+  employeeService.updateById(employee);
+
+  return Result.success("员工信息修改成功");
+}
+```
+
+<br>
+
+### 问题: 雪花算法带来的问题  
+我们上面的代码 没有报错 但是修改用户数据缺失败了
+
+<br>
+
+上面我们是根据用户的id做为sql的更新条件, 找到id指向的用户 修改该用户的信息
+
+```sql
+update employee set status = ?, update_time = ?, update_user = ? where id = ?
+```
+
+<br>
+
+但是 id的值是由雪花算法生成的 它是一个Long类型 **19位长度**的数字
+```s
+# 前端 localstorage 里面存储的 李四的id为:
+1638529636642578400
+
+
+# 数据库 里面存储的 李四的id为
+1638529636642578434
+```
+
+我们发现前后台的id值不一致, **问题出在js**
+
+<br>
+
+页面在**js处理long型数字只能精确到16位**, js只能保证前16位, 16位之后的它做了四舍五入的处理 
+
+所以最终通过ajax请求提交给服务端的时候id变了
+
+<br>
+
+所以id既然错了, 那么当我们根据前端传送过来的id进行修改数据库的时候 就会导致匹配不上数据而修改失败
+
+<br>
+
+### 解决方式: 
+我们可以在服务器端给页面响应json数据的时候 统一进行处理, **将long型数据统一转为字符串**
+
+<br>
+
+**实现步骤:**  
+我们需要在配置类中扩展一个**消息转换器**, 在消息转换器中在对Java对象转成Json的时候统一进行处理
+
+具体处理的时候又会调用**对象转换器**, 对象转换器的底层会使用jackson
+
+<br>
+
+我们需要进行如下的两步操作
+
+<br>
+
+1. 提供**对象转换器** jacksonObjectMapper, 基于jackson进行java对象到json数据的转换
+
+2. 在WebMvcConfig配置类中扩展SpringMVC
+的**消息转换器**, 在此消息转换器中使用提供的对象转换器进行java对象到json数据的转换
+
+<br>
+
+**步骤1: 创建 对象转换器:**  
+这个类是老师提供的 我们放在了common包下, 将我们java对象转成json 在转换的过程中 我们对各种各样的数据形式做了处理
+
+这里我们主要是将long型的数字 转换为字符串 这样就不会出现丢失精度的问题了
+
+```java
+package com.sam.reggie.common;
+
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
+import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateDeserializer;
+import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateTimeDeserializer;
+import com.fasterxml.jackson.datatype.jsr310.deser.LocalTimeDeserializer;
+import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateSerializer;
+import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateTimeSerializer;
+import com.fasterxml.jackson.datatype.jsr310.ser.LocalTimeSerializer;
+import java.math.BigInteger;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
+
+
+/*
+  对象映射器:
+    基于jackson将Java对象转为json，或者将json转为Java对象
+    将JSON解析为Java对象的过程称为 [从JSON反序列化Java对象]
+    从Java对象生成JSON的过程称为 [序列化Java对象到JSON]
+*/
+public class JacksonObjectMapper extends ObjectMapper {
+
+  public static final String DEFAULT_DATE_FORMAT = "yyyy-MM-dd";
+  public static final String DEFAULT_DATE_TIME_FORMAT = "yyyy-MM-dd HH:mm:ss";
+  public static final String DEFAULT_TIME_FORMAT = "HH:mm:ss";
+
+  public JacksonObjectMapper() {
+    super();
+    //收到未知属性时不报异常
+    this.configure(FAIL_ON_UNKNOWN_PROPERTIES, false);
+
+    //反序列化时，属性不存在的兼容处理
+    this.getDeserializationConfig().withoutFeatures(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+
+
+    SimpleModule simpleModule = new SimpleModule()
+        .addDeserializer(LocalDateTime.class, new LocalDateTimeDeserializer(DateTimeFormatter.ofPattern(DEFAULT_DATE_TIME_FORMAT)))
+        .addDeserializer(LocalDate.class, new LocalDateDeserializer(DateTimeFormatter.ofPattern(DEFAULT_DATE_FORMAT)))
+        .addDeserializer(LocalTime.class, new LocalTimeDeserializer(DateTimeFormatter.ofPattern(DEFAULT_TIME_FORMAT)))
+
+        .addSerializer(BigInteger.class, ToStringSerializer.instance)
+        // 对于lang数据进行处理的时候 会使用ToStringSerializer序列化器, 作用: 将lang型数据转换为字符串
+        .addSerializer(Long.class, ToStringSerializer.instance)
+        // 对日期时间类型进行序列化 将其转换成响应的字符串 yyyy-MM-dd or yyyy-MM-dd HH:mm:ss or HH:mm:ss 
+        .addSerializer(LocalDateTime.class, new LocalDateTimeSerializer(DateTimeFormatter.ofPattern(DEFAULT_DATE_TIME_FORMAT)))
+        .addSerializer(LocalDate.class, new LocalDateSerializer(DateTimeFormatter.ofPattern(DEFAULT_DATE_FORMAT)))
+        .addSerializer(LocalTime.class, new LocalTimeSerializer(DateTimeFormatter.ofPattern(DEFAULT_TIME_FORMAT)));
+
+    //注册功能模块 例如，可以添加自定义序列化器和反序列化器
+    this.registerModule(simpleModule);
+  }
+}
+```
+ 
+<br>
+
+**步骤2: 在WebMvcConfig配置类中扩展SpringMVC的消息转换器:**  
+如果我们不配置就是使用的默认的消息转换器, 现在我们要对它进行扩展
+```s
+# MVC框架默认的消息转换器 一种有8个默认的转换器
+- ByteArrayHttpMessageConverter
+- StringHttpMessageConverter
+- ResourceHttpMessageConverter
+- ResourceRegionHttpMessageConverter
+- SourceHttpMessageConverter
+- AllEncompassingFormHttpMessageConverter
+- Jaxb2RootElementHttpMessageConverter
+- MappingJackson2HttpMessageConverter
+```
+
+<br>
+
+在扩展的同时我们在消息转换器中使用上面创建的对象转换器, **配置类中的配置会在项目启动的时候生效**
+
+<br>
+
+```java
+package com.sam.reggie.config;
+
+import com.sam.reggie.common.JacksonObjectMapper;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.converter.HttpMessageConverter;
+import org.springframework.http.converter.cbor.MappingJackson2CborHttpMessageConverter;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
+import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurationSupport;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+import java.util.List;
+
+@Slf4j
+@Configuration
+public class WebMvcConfig implements WebMvcConfigurer {
+
+  // 设置 请求资源 映射到 哪个目录下 addResourceHandler资源处理器, 主要路径中 backend 就会映射到
+  @Override
+  public void addResourceHandlers(ResourceHandlerRegistry registry) {
+    registry.addResourceHandler("/backend/**").addResourceLocations("classpath:/backend/");
+    registry.addResourceHandler("/front/**").addResourceLocations("classpath:/front/");
+  }
+
+
+
+
+  // 重写extendMessageConverters方法: 扩展mvc框架的消息转换器
+  @Override
+  public void extendMessageConverters(List<HttpMessageConverter<?>> converters) {
+    
+    /*
+      创建消息转换器对象: 
+
+        将controller中返回的结果 转成 相对应的json, 再通过输出流响应给页面, 前端收到的json数据就是通过消息转换器传输的
+    */
+    MappingJackson2HttpMessageConverter messageConverter = new MappingJackson2HttpMessageConverter();
+
+    // 设置自己配置的对象转换器
+    messageConverter.setObjectMapper(new JacksonObjectMapper());
+
+    // 将消息转换器对象追加到mvc框架中的转换器集合中, 参数1是索引, 表示转换器的顺序, 将我们自己设置的消息转换器设置为首位
+    converters.add(0, messageConverter);
+  }
+}
+```
+
+<br><br>
+
+
+
+
+### 扩展:
+id是雪花算法得到的值 但是传递到前端的时候 可能会造成精度丢失
+
+如果有精度丢失的问题 可以在实体类的id属性上添加 ``@JsonFormat(shape=JsonFormat.Shape.STRING)`` 注解
+
