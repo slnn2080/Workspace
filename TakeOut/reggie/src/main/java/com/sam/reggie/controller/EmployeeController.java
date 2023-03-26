@@ -90,25 +90,38 @@ public class EmployeeController {
 
     // status属性: 数据库中有默认值 可忽略
 
-    // createTime属性: LocalDateTime类型
-    // 获取当前系统时间(Java端的时间) 2023-03-22T21:43:56.549
-    employee.setCreateTime(LocalDateTime.now());
+    /*
+      修改为 公共字段自动填充:
+      // createTime属性: LocalDateTime类型
+      // 获取当前系统时间(Java端的时间) 2023-03-22T21:43:56.549
+      employee.setCreateTime(LocalDateTime.now());
 
-    // updateTime属性: 跟新时间
-    employee.setUpdateTime(LocalDateTime.now());
+      // updateTime属性: 跟新时间
+      employee.setUpdateTime(LocalDateTime.now());
 
-    // createUser: 添加员工的人 也就是当前用户, 传入session中的id
-    Long empId = (Long) req.getSession().getAttribute("employee");
-    employee.setCreateUser(empId);
+      // createUser: 添加员工的人 也就是当前用户, 传入session中的id
+      Long empId = (Long) req.getSession().getAttribute("employee");
+      employee.setCreateUser(empId);
 
-    // updateUser: 更新人 也是当前用户
-    employee.setUpdateUser(empId);
+      // updateUser: 更新人 也是当前用户
+      employee.setUpdateUser(empId);
 
-    log.info("补充employee属性后的对象: {}", employee);
+      log.info("补充employee属性后的对象: {}", employee);
+    */
 
     // 调用service层的方法
     employeeService.save(employee);
     return Result.success("新增员工成功");
+  }
+
+
+  @GetMapping("/{id}")
+  public Result<Employee> getEmployeeById(@PathVariable Long id) {
+    Employee employee = employeeService.getById(id);
+    if(employee != null) {
+      return Result.success(employee);
+    }
+    return Result.error("没有查询到对应的员工信息");
   }
 
 
@@ -144,11 +157,17 @@ public class EmployeeController {
   // 返回值泛型: 前端页面需要用到code判断 不需要其它的数据
   public Result<String> update(@RequestBody Employee employee, HttpServletRequest req) {
 
-    // 要点: 在做更新操作的时候 我们需要为employee对象中的updateTime updateUser 这两个属性进行赋值 更新时间 和 更新人
-    employee.setUpdateTime(LocalDateTime.now());
+    /*
+      // 修改为自动填充功能
+      // 要点: 在做更新操作的时候 我们需要为employee对象中的updateTime updateUser 这两个属性进行赋值 更新时间 和 更新人
+      employee.setUpdateTime(LocalDateTime.now());
 
-    Long id = (Long) req.getSession().getAttribute("employee");
-    employee.setUpdateUser(id);
+      Long id = (Long) req.getSession().getAttribute("employee");
+      employee.setUpdateUser(id);
+    */
+
+    Long id = Thread.currentThread().getId();
+    log.info("线程id: {}", id);
 
     // 调用service修改数据库数据
     employeeService.updateById(employee);

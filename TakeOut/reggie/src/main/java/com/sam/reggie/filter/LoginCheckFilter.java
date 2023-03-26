@@ -1,6 +1,7 @@
 package com.sam.reggie.filter;
 
 import com.alibaba.fastjson.JSON;
+import com.sam.reggie.common.BaseContext;
 import com.sam.reggie.common.Result;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.AntPathMatcher;
@@ -18,15 +19,14 @@ public class LoginCheckFilter implements Filter {
   // Spring-Core提供的一个类 路径匹配器: 专门用来比对路径的工具类, 支持通配符的写法
   public static final AntPathMatcher PATH_MATCHER = new AntPathMatcher();
 
+  // 定义 ThreadLocal 变量
+  public static ThreadLocal<Long> threadLocal = new ThreadLocal<>();
 
   @Override
   public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {
 
     HttpServletRequest req = (HttpServletRequest) servletRequest;
     HttpServletResponse res = (HttpServletResponse) servletResponse;
-
-    log.info("拦截到请求: {}", req.getRequestURI());
-
 
     // 1. 获取本次请求的uri
     String uri = req.getRequestURI();
@@ -39,6 +39,7 @@ public class LoginCheckFilter implements Filter {
         "/employee/logout",
         "/backend/**",
         "/front/**",
+        "/dish/**"
     };
     /*
       如: 我们的请求路径为 /backend/index.html 时, 我们的 "/backend/** 是不一致的, 我们希望 /backend/** 能够匹配上 /backend/index.html 这里就需要使用 AntPathMatcher 路径匹配器
@@ -56,9 +57,12 @@ public class LoginCheckFilter implements Filter {
 
     // 4. 判断登录状态, 如果已登录 则直接放行
     // 需要处理, 判断用户是否登录
-    Object empId = req.getSession().getAttribute("employee");
+    Long empId = (Long) req.getSession().getAttribute("employee");
     if(empId != null) {
-      // 已经挡路
+      // 用户已登录
+
+      // 将用户id保存到ThreadLoal中
+      BaseContext.setCurrentId(empId);
       filterChain.doFilter(req, res);
       return;
     }

@@ -2085,13 +2085,2874 @@ public class WebMvcConfig implements WebMvcConfigurer {
 }
 ```
 
-<br><br>
-
-
-
+<br>
 
 ### 扩展:
-id是雪花算法得到的值 但是传递到前端的时候 可能会造成精度丢失
+id是雪花算法传到前端, 前端提交数据时的精度损失问题可以参考下面的方式
 
-如果有精度丢失的问题 可以在实体类的id属性上添加 ``@JsonFormat(shape=JsonFormat.Shape.STRING)`` 注解
+在实体类的id属性上添加 ``@JsonFormat(shape=JsonFormat.Shape.STRING)`` 注解
 
+<br><br>
+
+# 编辑员工信息
+
+## 需求分析
+在员工管理列表页面点击编辑按钮, 跳转到编辑页面 **在编辑页面回显员工信息并进行修改**, 最后点击保存按钮完成编辑操作
+
+<br><br>
+
+## 梳理逻辑
+
+### 思考:
+在列表中的一行内 点击编辑按钮, 不可以用scope参数 传递到编辑页面么?
+
+<br>
+
+### Demo逻辑
+1. 点击编辑按钮时, 页面跳转到 add.html 并**在url中携带员工参数(员工id)**
+
+2. **在add.html页面获取url中的参数(员工id)**
+
+3. **发送ajax请求, 请求服务端, 同时提交员工id参数**
+
+4. 服务端接收请求, **根据员工id查询员工信息**, 将员工信息以JSON形式响应给页面
+
+5. 页面接受服务器响应的json数据, 通过vue的数据绑定进行员工信息的回显
+
+6. 点击保存按钮, 发送ajax请求, 将页面中的员工信息以json方式提交给服务器
+
+7. 服务器端接收员工信息 并进行处理, 完成后给页面响应
+
+8. 页面接收到服务端响应信息后进行相应的处理
+
+<br>
+
+**注意:**  
+**add.html页面为公共页面** 新增员工 和 编辑员工 都是在此页面操作
+
+<br>
+
+### 页面动作
+这里跟上面的Demo逻辑搭配着看
+
+**1. 员工列表页面点击 编辑按钮 后**  
+会跳转到add.html页面 并携带id
+```s
+localhost:8080/backend/page/member/add.html?id=68246582765
+```
+
+<br>
+
+页面在点击 [添加员工] 的时候 会执行 addMemberHandle("add")回调中会传入一个 add的标识符
+
+回调内会对add标识符进行判断, 如果没有 add标识符跳转页面的时候就是修改 并携带id参数
+```js
+addMemberHandle (st) {
+  if (st === 'add'){
+    window.parent.menuHandle({
+      id: '2',
+      url: '/backend/page/member/add.html',
+      name: '添加员工'
+    },true)
+  } else {
+    window.parent.menuHandle({
+      id: '2',
+      url: '/backend/page/member/add.html?id='+st, 
+      name: '修改员工'
+    },true)
+  }
+},
+```
+
+<br>
+
+2. **在add.html页面获取url中的参数(员工id) 并发送ajax请求**  
+```s
+请求地址: /employee/68246582765
+请求方式: get
+```
+
+<br>
+
+add页面在create周期中 会获取url上的id参数 然后根据是否有id参数来进行判断 是修改 还是 添加
+
+```js
+created() {
+  this.id = requestUrlParam('id')
+  this.actionType = this.id ? 'edit' : 'add'
+  if (this.id) {
+    this.init()
+  }
+}
+```
+
+<br>
+
+如果是修改功能则发起 init 请求, 获取该id员工的数据 用户页面的回显
+```js
+async init () {
+  queryEmployeeById(this.id).then(res => {
+    console.log(res)
+    if (String(res.code) === '1') {
+      console.log(res.data)
+      this.ruleForm = res.data
+      this.ruleForm.sex = res.data.sex === '0' ? '女' : '男'
+      // this.ruleForm.password = ''
+    } else {
+      this.$message.error(res.msg || '操作失败')
+    }
+  })
+},
+```
+
+<br>
+
+**3. 用户修改完用户信息点击保存按钮 再次发送ajax请求 将json方式提交给服务器端**  
+修改用户数据的话 应该打向 update的控制器方法
+
+<br><br>
+
+## 功能实现:
+
+### 处理根据id查询对应的用户信息的控制器方法:
+1. 前端发起的请求是restful风格的接口, 所以我们要使用{}路径占位符 和 @PathVariable 注解
+
+2. 对查询到的数据进行判空处理
+
+```java
+@GetMapping("/{id}")
+  public Result<Employee> getEmployeeById(@PathVariable Long id) {
+    Employee employee = employeeService.getById(id);
+
+    if(employee != null) {
+      return Result.success(employee);
+    }
+    return Result.error("没有查询到对应的员工信息");
+  }
+```
+
+<br>
+
+点击 [保存] 按钮, 发送请求 保存修改后的数据到数据库的功能已经开发完毕了 就是update()控制器方法
+
+<br><br>
+
+# 分类管理业务
+上面是员工管理模块 这里我们要实现分类管理模块
+
+我们在分类管理模块可以添加分类
+1. 新增 菜品分类
+2. 新增 套餐分类
+
+<br>
+
+后续还会有 如下的两个模块
+1. 菜品管理 模块
+2. 套餐管理 模块
+
+当我们添加一个菜品的时候, 它必须要对应一种菜品的分类, 所以我们要提前将 分类管理模块 创建出来
+
+<br><br>
+
+## 公共字段自动填充
+公共字段自动填充是由MyBatis-Plus框架给我们提供的一种功能 **该功能可以将公共的字段交给MyBatis-Plus来维护** 可以简化我们的开发
+
+<br>
+
+### 问题分析
+前面我们已经开发的代码会存在如下的问题
+1. 在新增员工时 需要设置 创建时间, 创建人, 修改时间, 修改人等字段
+
+2. 在编辑员工时 需要设置 修改时间, 修改人等字段
+
+```
+create_time  datetime
+update_time  datetime
+create_user  bigint
+update_user  bigint
+```
+
+<br>
+
+类似这样的字段属于公共字段 也就是很多表中都有这些字段, 那能不能对这些公共字段在某个地方统一处理 来简化开发呢
+
+答案就是用MyBatis-Plus提供的 **公共字段自动填充** 功能
+
+<br>
+
+### 公共字段自动填充: 代码实现
+MyBatisPlus的公共字段自动填充 也就是**在插入或者更新的时候为指定字段赋予指定的值**
+
+使用它的好处就是可以对这些字段进行处理 避免了重复代码
+
+<br>
+
+### 实现步骤:
+1. 在实体类的属性上加入 **@TableField** 注解, 指定自动填充的策略
+- DEFAULT: 默认不处理
+- INSERT: 插入时 填充字段
+- UPDATE: 更新时 填充字段
+- INSERT_UPDATE: 插入 和 更新时 填充字段
+
+<br>
+
+2. **按照框架要求编写元数据对象处理器**, 在此类中统一为公共字段赋值, 此类需要实现MetaObjectHandler接口
+
+<br>
+
+### 步骤1:
+```java
+@Data
+public class Employee implements Serializable {
+
+  private static final long serialVersionUID = 1L;
+  private Long id;
+  private String username;
+  private String name;
+  private String password;
+  private String phone;
+  private String sex;
+  private String idNumber;//身份证号码
+  private Integer status;
+
+  // 插入时 填充字段
+  @TableField(fill = FieldFill.INSERT)
+  private LocalDateTime createTime;
+
+  // 插入 和 更新时 填充字段
+  @TableField(fill = FieldFill.INSERT_UPDATE)
+  private LocalDateTime updateTime;
+
+  // // 插入时 填充字段
+  @TableField(fill = FieldFill.INSERT)
+  private Long createUser;
+
+  // 插入 和 更新时 填充字段
+  @TableField(fill = FieldFill.INSERT_UPDATE)
+  private Long updateUser;
+
+}
+```
+
+<br>
+
+### 步骤2:
+创建一个类(类名任意) **主要是需要实现 MetaObjectHandler接口**  
+
+<br>
+
+**要点:**  
+**1. MetaObjectHandler实现类中要实现如下的两个抽象方法**
+- insertFill(MetaObject metaObject)
+- updateFill(MetaObject metaObject)
+
+如上的两个方法会在
+- 当执行 insert语句的时候 会调用 insertFill
+- 当执行 update语句的时候 会调用 updateFill
+
+<br>
+
+**2. MetaObject类型形参**  
+它里面封装着 我们要操作的对象, 比如我们插入员工数据的时候, 它里面封装的就是Employee实体类
+
+```js
+metaObject参数: 元数据对象
+{
+  originalObject: 它里面是 employee对象
+  objectWrapper:
+  objectFactory:
+  objectWrapperFactory
+  reflectorFactory:
+}
+```
+
+<br>
+
+**3. metaObject.setValue("实体类中属性名", "值")**  
+我们通过setValue方法 为实体类中的属性(对应着表中的字段) 赋值
+
+这些字段就是交给MyBatis-Plus管理的公共字段
+
+```java
+package com.sam.reggie.common;
+
+import com.baomidou.mybatisplus.core.handlers.MetaObjectHandler;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.ibatis.reflection.MetaObject;
+import org.springframework.stereotype.Component;
+
+import java.time.LocalDateTime;
+
+// 自定义元数据对象处理器
+@Component
+@Slf4j
+public class MyMetaObjectHandler implements MetaObjectHandler {
+
+  /*
+    metaObject参数: 元数据对象
+    {
+      originalObject: 它里面是 employee对象
+      objectWrapper:
+      objectFactory:
+      objectWrapperFactory
+      reflectorFactory:
+    }
+  */
+  // 当执行 insert语句的时候 会调用该方法
+  @Override
+  public void insertFill(MetaObject metaObject) {
+    log.info("公共字段自动填充 [insert]");
+    System.out.println("metaObject = " + metaObject.toString());
+    metaObject.setValue("createTime", LocalDateTime.now());
+    metaObject.setValue("updateTime", LocalDateTime.now());
+    // createUser需要添写 当前用户的Long id, 我们在控制层的时候当前用户的id是从session中获取的 但是我们在当前类中获取不到session对象 暂时我们先写死
+    metaObject.setValue("createUser", new Long(1));
+    metaObject.setValue("updateUser", new Long(1));
+  }
+
+  // 当执行 update语句的时候 会调用该方法
+  @Override
+  public void updateFill(MetaObject metaObject) {
+    log.info("公共字段自动填充 [update]");
+    System.out.println("metaObject = " + metaObject.toString());
+    metaObject.setValue("updateTime", LocalDateTime.now());
+    metaObject.setValue("updateUser", new Long(1));
+  }
+}
+
+```
+
+<br>
+
+**自动填充的优势:**   
+它不仅仅是针对Employee表的 后续的其他的表(实体类中有这些属性) 都会被自动填充
+
+<br><br>
+
+## 功能完善: 在元数据对象处理器中动态获取登录用户id
+前面我们已经完成了公共字段自动填充功能的代码开发
+
+但是还有一个问题没有解决, 就是我们在自动填充createUser 和 updateUser 的时候设置的用户id是固定值
+
+**现在我们需要改成动态获取当前登录用户的id**  
+
+但是 元数据对象处理器 中无法获取到 HttpSession 对象, 所以我们考虑使用 **ThreadLocal** 来解决该问题
+
+<br>
+
+### 弹幕扩展:
+他们说不用 ThreadLocal 也可以 可以使用如下的方案
+1. @Autowired HttpSession session
+2. @Autowired HttpServletRequest request
+
+测试了 确实可以
+
+<br>
+
+### ThreadLocal
+ThreadLocal**可以给当前线程关联一个数据**, 这样就避免其它的线程访问这个数据
+
+也就是说 可以给当前线程 关联一个数据, 我们可以根据当前线程名 来获取 和 设置该数据
+```java
+{
+  当前线程: 关联的数据
+}
+```
+
+简单理解: 它可以像Map一样存取数据 key为当前线程
+
+<br>
+
+**回顾使用方式:**  
+```java
+public class ThreadData {
+
+  public static ThreadLocal<Object> threadLocal = new ThreadLocal<>();
+
+
+  // 在哪个逻辑中保存数据
+  threadLocal.set(i);
+}
+
+
+// 在别的类中获取数据
+Object o = ThreadData.threadLocal.get();
+```
+
+<br>
+
+### 知识前置:
+在使用 ThreadLocal 之前, 我们要知道**客户端发送的每次Http请求 对应的在服务器端都会分配一个新的线程来处理**, 在处理过程中就会涉及到下面类中的方法都属于相同的线程
+
+(可能涉及到多个类的多个调用方法 整个的调用链条 都属于同一个线程)
+
+<br>
+
+1. LoginCheckFilter 的 doFilter 方法
+2. EmployeeController 的 update 方法
+3. MyMetaObjectHandler 的 updateFill 方法
+
+<br>
+
+**验证上述的3个方法是否为同一个线程**
+可以在上面的三个方法中分别加入下面的代码(获取当前线程的id)
+```java
+Long id = Thread.currentThread().getId();
+log.info("线程id: {}", id)
+
+// 输出结果: 上面的三个方法的线程id都是一致的
+```
+
+说明客户端发起的一次请求 会经过上面的方法进行处理, 而它们都属于同一个线程内的逻辑
+
+<br>
+
+**总结:**  
+一次请求中 上述的三个方法属于一个线程中的
+
+<br>
+
+### TheadLocal介绍
+ThreadLocal并不是Thread 而是Thread的局部变量
+
+当使用ThreadLocal维护变量的时候, ThreadLocal为每个使用该变量的线程提供独立的变量副本
+
+**所以每一个线程都可以独立地改变自己的副本, 而不会影响其它的线程所对应的副本**
+
+<br>
+
+ThreadLocal为每个线程提供单独一份存储空间 具有线程隔离效果, 只有在线程内才能获取到对应的值 线程外则不能方法, **它就相当于一个线程中的 vuex**
+
+<br>
+
+**常用方法:**  
+- public void set(T value) 设置当前线程的局部变量的值
+- public T get() 返回当前线程对应的线程局部变量的值
+- public void remove()
+
+<br>
+
+**逻辑:**  
+我们可以在LoginCheckFilter的doFilter方法中 获取当前登录用户的id
+
+并调用ThreadLocal的set方法来设置当前线程的线程局部变量的值
+
+然后再MyMetaObjectHandler的updateFill方法中调用ThreadLocal的get方法获取当前线程所对应的线程局部变量的值
+
+<br>
+
+### 代码实现:
+1. 编写BaseContext工具类, 基于ThreadLocal封装的工具类
+
+2. 在LoginCheckFilter的doFilter方法中调用 BaseContext来**设置**当前登录的用户id
+
+3. 在MyMetaObjectHandler的方法中调用BaseContext来**获取**当前登录的用户id
+
+<br>
+
+**BaseContext工具类:**  
+```java
+// 基于ThreadLocal封装的工具类 用于保存和获取当前登录用户的id
+public class BaseContext {
+  private static ThreadLocal<Long> threadLocal = new ThreadLocal<>();
+
+  public static Long getCurrentId() {
+    return threadLocal.get();
+  }
+
+  public static void setCurrentId(Long id) {
+    threadLocal.set(id);
+  }
+}
+```
+
+<br>
+
+**LoginCheckFilter设置用户id:**  
+都是通过工具类来操作的
+```java
+Long empId = (Long) req.getSession().getAttribute("employee");
+if(empId != null) {
+  // 将用户id保存到ThreadLoal中
+  BaseContext.setCurrentId(empId);
+  filterChain.doFilter(req, res);
+  return;
+}
+```
+
+<br>
+
+**MyMetaObjectHandler元数据对象处理器中通过ThreadLocal获取id**  
+都是通过工具类来操作的
+```java
+@Override
+public void updateFill(MetaObject metaObject) {
+  log.info("公共字段自动填充 [update]");
+
+  Long currentId = BaseContext.getCurrentId();
+
+  metaObject.setValue("updateTime", LocalDateTime.now());
+
+  metaObject.setValue("updateUser", currentId);
+}
+```
+
+<br><br>
+
+# 分类管理: 新增分类
+
+## 需求分析:
+后台系统中可以管理分类信息 分类包括两种类型 分别是
+- 菜品分类 
+- 套餐分类
+
+<br>
+
+### 添加分类的作用
+当我们在后台系统中添加菜品的时候需要选择一个菜品分类  
+当我们在后台系统中添加套餐的时候需要选择一个套餐分类
+
+在移动端也会按照 菜品分类 和 套餐分类 来展示对应的菜品和套餐 (手机端 左侧菜单栏)
+
+<br><br>
+
+## 数据模型
+分类管理 对应 category 数据表 
+
+**数据表category的字段:**  
+- id bigint
+- type int: 取值1-菜品分类 取值2-套餐分类
+- name varchar: 分类名称 具有唯一约束
+- sort int
+- create_time
+- update_time
+- create_user
+- update_user
+
+<br>
+
+### 准备工作
+1. 创建 实体类 Category
+2. Mapper接口
+3. 业务层接口 和 实现类
+4. 控制层
+
+<br>
+
+### category数据表对应的实体类
+```java
+package com.sam.reggie.entity;
+
+@Data
+public class Category implements Serializable {
+
+  private static final long serialVersionUID = 1L;
+
+  private Long id;
+
+
+  //类型 1 菜品分类 2 套餐分类
+  private Integer type;
+
+
+  //分类名称
+  private String name;
+
+
+  //顺序
+  private Integer sort;
+
+
+  //创建时间
+  @TableField(fill = FieldFill.INSERT)
+  private LocalDateTime createTime;
+
+
+  //更新时间
+  @TableField(fill = FieldFill.INSERT_UPDATE)
+  private LocalDateTime updateTime;
+
+
+  //创建人
+  @TableField(fill = FieldFill.INSERT)
+  private Long createUser;
+
+
+  //修改人
+  @TableField(fill = FieldFill.INSERT_UPDATE)
+  private Long updateUser;
+
+
+  //是否删除
+  private Integer isDeleted;
+
+}
+```
+
+<br>
+
+### 新增分类 梳理执行流程:
+前端页面点击 [新增菜品分类] [新增套餐分类] 按钮 会发起请求 请求地址都是一个 /category
+
+不管是菜品还是套餐都会将数据插入到 category 表中
+
+<br>
+
+**form内容:**
+```
+分类名称: _ _ _ _ _ 
+排序: _ _ _ _ _ 
+```
+
+<br>
+
+1. 页面(backend/page/category/list.html) 发送ajax请求 将新增分类创建输入的数据以json形式提交到服务器
+
+2. 服务器端controller接收页面提交的数据并调用service将数据进行保存
+
+3. service调用mapper操作数据库 保存数据
+
+<br>
+
+**新增菜品分类 请求参数:**  
+- 请求方式: post
+- 请求地址: /category
+- 参数:
+```js
+{
+  name: "川菜",
+  type: "1",
+  sort: "2"
+}
+```
+
+<br>
+
+**新增套餐分类 请求参数:**  
+- 请求方式: post
+- 请求地址: /category
+- 参数:
+```js
+{
+  name: "周末超值套餐",
+  type: "2",
+  sort: "1"
+}
+```
+
+<br>
+
+可以看到新增菜品分类 和 新增套餐分类 请求的服务器地址 和 提交的json数据结构都是相同的
+
+所以服务器只需要提供一个方法统一处理就可以
+
+<br>
+
+### 控制方法:
+1. 前端页面只使用了code 所以Result``<String>`` 传入string就可以
+
+```java
+@RestController
+@RequestMapping("/category")
+public class CategoryController {
+  @Autowired
+  private CategoryService categoryService;
+
+  @PostMapping
+  public Result<String> save(@RequestBody Category category) {
+    categoryService.save(category);
+    return Result.success("新增分类成功");
+  }
+}
+```
+
+<br><br>
+
+# 分类信息分页查询
+
+## 需求分析
+分类管理的列表页面 要求以分页的功能来展示数据
+
+1. 前端页面发送ajax请求 将分页查询参数(page, pageSize)提交到服务端
+
+2. 服务器端controller接收页面提交的数据并调用service查询数据
+
+<br><br>
+
+## 前端相关:
+1. 页面在 created 中会调用 init()方法
+2. init方法中会发送ajax请求
+  - 请求地址: /category/page
+  - 请求方法: get
+  - 请求参数: page pageSize
+
+3. init方法中会根据返回的code 来执行相关的逻辑
+
+<br><br>
+
+## 后台控制层:
+1. 前端会通过 url带参的方式 携带参数 我们直接定义形参来接收前端发送的参数
+
+2. 控制器方法需要返回分页相关的数据, 返回值定义为Page对象
+
+3. LambdaQueryWrapper定义排序sql
+```java
+@GetMapping("/page")
+public Result<Page<Category>> page(Integer page, Integer pageSize) {
+
+  // page对象
+  Page<Category> pageInfo = new Page<>(page, pageSize);
+
+  // 条件构造器 设置升序排序
+  LambdaQueryWrapper<Category> queryWrapper = new LambdaQueryWrapper<>();
+
+  queryWrapper.orderByAsc(Category::getSort);
+
+  // 调用service层方法操作数据库
+  categoryService.page(pageInfo, queryWrapper);
+
+  return Result.success(pageInfo);
+}
+```
+
+<br>
+
+### 扩展:
+时间戳类型可以在实体类的有关时间上加上如下的注解
+```java
+@JsonFormat(pattern="yyyy-MM-dd")
+```
+
+<br><br>
+
+# 删除分类
+在分类管理列表页面 可以对某个分类进行删除操作, 列表中的一行 都会有 [修改] 和 [删除] 两个按钮
+
+**注意:**  
+需要注意的是当分类关联了菜品或者套餐的时候 **此分类不允许被删除**
+
+这里我们就需要判断 看看当前的分类下面有没有具体的菜品或者套餐, 如果关联了 则该分类不能删除 并发送提示信息 让前端提示用户
+
+<br>
+
+## 梳理逻辑
+1. 页面发送删除的ajax请求 将参数id提交到服务器
+
+2. 服务端Controller接收页面提交的参数id, 在删除分类之前 要检查该分类是否关联了菜品 
+  - 如果没有关联 则调用 service删除数据 
+  - 如果已经关联 则 不能删除 (抛出业务异常)
+
+3. service调用mapper操作数据库
+4. 前端根据返回的结果的code 来提示用户是否删除成功
+
+<br>
+
+### 请求参数
+- 请求地址: /category?id=xxxx
+- 请求方式: delete
+
+<br>
+
+### 准备工作
+因为我们要在删除分类的时候 判断该菜品分类下有没有关联其他的菜品或者套餐 所以我们需要操作其他的表
+
+既然是其他的表那么就需要定义该表的实体类 Mapper Service
+
+- Dish(菜品实体类) 和 Setmeal(套餐实体类)
+- DishMapper 和 SetmealMapper
+- DishService 和 SetmealService
+- DishServiceImpl 和 SetmealServiceImpl
+
+<br>
+
+**Dish实体类:**  
+```java
+package com.sam.reggie.entity;
+
+/**
+ 菜品
+ */
+@Data
+public class Dish implements Serializable {
+
+  private static final long serialVersionUID = 1L;
+
+  private Long id;
+
+
+  //菜品名称
+  private String name;
+
+
+  //菜品分类id
+  private Long categoryId;
+
+
+  //菜品价格
+  private BigDecimal price;
+
+
+  //商品码
+  private String code;
+
+
+  //图片
+  private String image;
+
+
+  //描述信息
+  private String description;
+
+
+  //0 停售 1 起售
+  private Integer status;
+
+
+  //顺序
+  private Integer sort;
+
+
+  @TableField(fill = FieldFill.INSERT)
+  private LocalDateTime createTime;
+
+
+  @TableField(fill = FieldFill.INSERT_UPDATE)
+  private LocalDateTime updateTime;
+
+
+  @TableField(fill = FieldFill.INSERT)
+  private Long createUser;
+
+
+  @TableField(fill = FieldFill.INSERT_UPDATE)
+  private Long updateUser;
+
+
+  //是否删除
+  private Integer isDeleted;
+
+}
+
+```
+
+<br>
+
+**Setmeal:**  
+```java
+package com.sam.reggie.entity;
+
+/**
+ * 套餐
+ */
+@Data
+public class Setmeal implements Serializable {
+
+  private static final long serialVersionUID = 1L;
+
+  private Long id;
+
+
+  //分类id
+  private Long categoryId;
+
+
+  //套餐名称
+  private String name;
+
+
+  //套餐价格
+  private BigDecimal price;
+
+
+  //状态 0:停用 1:启用
+  private Integer status;
+
+
+  //编码
+  private String code;
+
+
+  //描述信息
+  private String description;
+
+
+  //图片
+  private String image;
+
+
+  @TableField(fill = FieldFill.INSERT)
+  private LocalDateTime createTime;
+
+
+  @TableField(fill = FieldFill.INSERT_UPDATE)
+  private LocalDateTime updateTime;
+
+
+  @TableField(fill = FieldFill.INSERT)
+  private Long createUser;
+
+
+  @TableField(fill = FieldFill.INSERT_UPDATE)
+  private Long updateUser;
+
+
+  //是否删除
+  private Integer isDeleted;
+}
+
+```
+
+<br>
+
+### 根据前端传递的id 进行判断
+我们要判断当前分类下是否关联着菜品和套餐
+
+这里我们就需要使用 Service接口 扩展我们自己的逻辑, 我们判断的逻辑 放在 CategoryServiceImpl 下进行
+
+<br>
+
+**CategoryService:**  
+扩展我们自己的业务层逻辑, controller层接收到前端参数后 调用Service层的remove方法 在Service层的remove方法里面 
+
+做相关的逻辑判断
+
+```java
+package com.sam.reggie.service;
+
+public interface CategoryService extends IService<Category> {
+
+  // 扩展的自己的业务逻辑
+  public void remove(Long id);
+}
+
+```
+
+<br>
+
+**CategoryServiceImpl:**  
+我们在Service的实现类中 做具体的业务判断
+
+**逻辑:**  
+1. 查询当前分类是否关联了**菜品** 如果已经关联 **抛出一个业务异常**, 需要自定义异常类
+
+2. 查询当前分类是否关联了**套餐** 如果已经关联 **抛出一个业务异常**, 需要自定义异常类
+
+3. 如果上面都没有关联 则正常删除
+
+<br>
+
+其实就是拿着分类的id去菜品表 和 套餐表中进行查询 看看有没有结果 如果有则说明已经关联了
+
+其实就是**通过 dishService 和 setmealService** 中定义的方法分别查询菜品表 和 套餐表
+
+```sql
+select count(*) from dish where category_id = ?
+
+select count(*) from setmeal where category_id = ?
+
+
+setmealService.count(条件构造器)
+dishService.count(条件构造器)
+```
+
+<br>
+
+```java
+package com.sam.reggie.service.impl;
+
+@Service
+public class CategoryServiceImpl extends ServiceImpl<CategoryMapper, Category> implements CategoryService {
+
+  @Autowired
+  private DishService dishService;
+
+  @Autowired
+  private SetmealService setmealService;
+
+
+  // 根据id删除分类 删除之前 需要进行判断
+  @Override
+  public void remove(Long id) {
+
+    // 查询当前分类是否关联了菜品 如果已经关联 抛出一个业务异常
+    // 查询dish表: select count(*) from dish where category_id = ?
+    LambdaQueryWrapper<Dish> dishLambdaQueryWrapper = new LambdaQueryWrapper<>();
+
+    dishLambdaQueryWrapper.eq(Dish::getCategoryId, id);
+
+    int dishCount = dishService.count(dishLambdaQueryWrapper);
+
+
+    if(dishCount > 0) {
+      // 已经关联菜品 抛出一个业务异常
+    }
+
+
+    // 查询当前分类是否关联了套餐 如果已经关联 抛出一个业务异常
+    // 查询dish表: select count(*) from setmeal where category_id = ?
+    LambdaQueryWrapper<Setmeal> setmealLambdaQueryWrapper = new LambdaQueryWrapper<>();
+    setmealLambdaQueryWrapper.eq(Setmeal::getCategoryId, id);
+    int setmealCount = setmealService.count(setmealLambdaQueryWrapper);
+
+
+    if(setmealCount > 0) {
+      // 已经关联套餐 抛出一个业务异常
+    }
+
+
+    // 如果上面都没有关联 则正常删除
+    // 通过super调用父类的mybatis-plus中定义的方法
+    super.removeById(id);
+
+  }
+}
+
+```
+
+<br>
+
+### 抛出业务异常
+一般我们都会在项目中定义自己的业务异常 我们在common包下定义
+
+**目的:**  
+定义自己的异常信息
+
+```java
+package com.sam.reggie.common;
+
+// 自定义业务异常类
+public class CustomException extends RuntimeException {
+
+  // 定义构造器: 传入异常信息
+  public CustomException(String message) {
+    super(message);
+  }
+}
+```
+
+<br>
+
+**使用方式:**  
+这样我们就能定义自己的异常信息了
+```java
+throw new CustomException("当前分类下关联了菜品, 不能删除");
+```
+
+<br>
+
+我们的异常信息需要传递给前端 让前端来显示 要做到这点必须 我们这里既然抛出了异常 则我们需要在 **全局异常处理器** 中统一捕获我们的自定义异常
+
+<Br>
+
+**全局异常处理器**  
+也就是service层 抛出的异常 交给全局异常处理器来响应回前端页面
+
+全局异常处理器中可以使用 @ResponseBody 注解, 可以使用return将数据响应回前端
+
+```java
+package com.sam.reggie.common;
+
+import java.sql.SQLIntegrityConstraintViolationException;
+
+// 全局异常处理器, 使用annotations属性 拦截Controller层中使用了@RestController注解的类
+@ControllerAdvice(annotations = {RestController.class, Controller.class})
+// 使用该注解, 最终将JSON数据进行返回
+@ResponseBody
+@Slf4j
+public class GlobalExceptionHandler {
+
+  // 处理 sql的异常
+  @ExceptionHandler(SQLIntegrityConstraintViolationException.class)
+  public Result<String> exceptionHandler(SQLIntegrityConstraintViolationException ex) {
+    log.error("sql侧异常信息为: ", ex.getMessage());
+    if(ex.getMessage().contains("Duplicate entry")) {
+      String[] strings = ex.getMessage().split(" ");
+      String msg = strings[2] + "已存在";
+      return Result.error(msg);
+    }
+
+    return Result.error("未知错误");
+  }
+
+
+
+
+  // 全局异常处理中处理自己的定义的业务异常
+  @ExceptionHandler(CustomException.class)
+  // 处理方法中要声明该异常类型的形参
+  public Result<String> customExceptionHandler(CustomException ex) {
+    return Result.error(ex.getMessage());
+  }
+}
+
+```
+
+<br>
+
+### 完成上面的代码:
+```java
+package com.sam.reggie.service.impl;
+
+@Service
+public class CategoryServiceImpl extends ServiceImpl<CategoryMapper, Category> implements CategoryService {
+
+  @Autowired
+  private DishService dishService;
+
+  @Autowired
+  private SetmealService setmealService;
+
+
+  // 根据id删除分类 删除之前 需要进行判断
+  @Override
+  public void remove(Long id) {
+
+    // 查询当前分类是否关联了菜品 如果已经关联 抛出一个业务异常
+    LambdaQueryWrapper<Dish> dishLambdaQueryWrapper = new LambdaQueryWrapper<>();
+    dishLambdaQueryWrapper.eq(Dish::getCategoryId, id);
+    int dishCount = dishService.count(dishLambdaQueryWrapper);
+
+    if(dishCount > 0) {
+      // 已经关联菜品 抛出一个业务异常
+      throw new CustomException("当前分类下关联了菜品, 不能删除");
+    }
+
+
+    // 查询当前分类是否关联了套餐 如果已经关联 抛出一个业务异常
+    LambdaQueryWrapper<Setmeal> setmealLambdaQueryWrapper = new LambdaQueryWrapper<>();
+    setmealLambdaQueryWrapper.eq(Setmeal::getCategoryId, id);
+    int setmealCount = setmealService.count(setmealLambdaQueryWrapper);
+
+    if(setmealCount > 0) {
+      // 已经关联套餐 抛出一个业务异常
+      throw new CustomException("当前分类下关联了套餐, 不能删除");
+    }
+
+    // 如果上面都没有关联 则正常删除
+    // 调用父类的mybatis-plus中定义的方法
+    super.removeById(id);
+
+  }
+}
+
+```
+
+<br>
+
+**controller层:**  
+```java
+// 根据id删除分类
+@DeleteMapping
+// url携带的id 所以我们直接定义形参就可以, 前端判断需要的是code 所以返回值中我们传入 String 就可以
+public Result<String> deleteCategory(Long id) {
+
+  // 调用我们service层中自定义的方法 内部会处理判断逻辑
+  categoryService.remove(id);
+
+  return Result.success("删除分类成功");
+}
+```
+
+<br><br>
+
+# 修改分类:
+
+## 需求分析
+在分类管理列表页面会有 [修改] 按钮, 点击该按钮的时候 在修改窗口回显分类信息并进行修改, 最后点击确定按钮发送请求 完成修改操作
+
+<br>
+
+这个部分的回显操作 不是和后台交互获取数据的 而是前端在点击[修改]按钮的时候 会携带该行的参数, 通过这种方式进行回显的
+```js
+@click="editHandler(scope.row)"
+```
+
+<br>
+
+### 点击按钮发送请求:
+- 请求地址: /category
+- 请求方式: put
+- 请求参数: {id, name, sort}
+
+<br><br>
+
+## 后台控制层
+修改方法是 update() 系列
+
+```java
+// 修改菜品的处理
+@PutMapping
+public Result<String> updateCategory(@RequestBody Category category) {
+  categoryService.updateById(category);
+  return Result.success("修改分类成功");
+}
+```
+
+<br><br>
+
+# 文件的上传
+菜品管理模块中需要上传图片
+
+<br>
+
+### 文件上传的介绍
+文件上传 也称为upload 是指将本地图片 视频 音频等文件上传到服务器上
+
+可以供其他用户浏览货下载的过程 文件上传在项目中应用非常广泛 我们经常发微博 发微信朋友圈都用到了文件上传功能
+
+<br>
+
+### 文件上传 对前端表单的要求
+一般都是使用UI框架 但是底层确实是基于原生的html来实现的
+
+- method: post
+- enctype: multipart/form-data
+- type: file
+
+<br>
+
+### 前端相关:
+文件上传的表单项触发 onchange 的时候 触发的回调中 主要做了两件事情
+
+1. 获取文件名的后缀 做文件类型判断
+2. 获取文件大小 做上传文件的大小判断
+
+然后表单提交的时候 发起真正的请求
+```js
+onChange (file) {
+  if(file){
+    const suffix = file.name.split('.')[1]
+    const size = file.size / 1024 / 1024 < 2
+    if(['png','jpeg','jpg'].indexOf(suffix) < 0){
+      this.$message.error('上传图片只支持 png、jpeg、jpg 格式！')
+      this.$refs.upload.clearFiles()
+      return false
+    }
+    if(!size){
+      this.$message.error('上传文件大小不能超过 2MB!')
+      return false
+    }
+    return file
+  }
+},
+```
+
+<br>
+
+### 后台相关: 
+
+### 控制器方法接受前端上传的文件 声明 MultipartFile类型 形参
+服务器接收客户端页面上传的文件, 我们通常会使用Apache的两个组件
+
+- commons-fileupload
+- commons-io
+
+<br>
+
+Spring框架在spring-web包中对文件上传进行了封装 大大简化了服务端代码
+
+我们 **只需要在Controller的方法中声明一个 MultipartFile 类型的参数即可接受上传的文件**
+
+```java
+public Result<String> upload(MultipartFile file) { ... }
+```
+
+
+
+## 文件上传代码部分
+这里我们使用的就是demo演示 跟项目无关
+
+<br>
+
+### 请求参数:
+- 请求地址: /common/upload
+- 请求方式: post
+- 请求参数: file
+
+<br>
+
+### 文件上传的演示:
+这里我们先使用一个Demo来测试下文件上传的功能 跟项目本身无关
+
+<br>
+
+**要点:**  
+前端上传图片, 后台肯定要接收前端上传的文件, 后台如何接收呢? 就比如nodejs中我们配置了依赖后 可以使用req.files来接收上传的文件数据
+
+<br>
+
+### SpringBoot接收上传的文件
+SpringBoot中我们可以直接在控制器方法中声明参数即可
+
+<br>
+
+**方式1: 声明 (MultipartFile file) 参数**  
+1. 参数类型 必须是 MultipartFile
+2. 参数名 必须和前端file表单项的name值一致
+
+<br>
+
+**方式2: 使用该注解 <font color="#C2185B">(@RequestPart("文件表单项中的name值一致") MultipartFile 自定义形参名)</font>**  
+将接收到的文件数据 交给我们自己定义的形参, 该方式我们可以自定义形参名
+
+<br>
+
+### @RequestPart 注解
+用于处理multipart/form-data类型的请求。通常用于上传文件等场景。
+@RequestPart注解还支持更广泛的类型，包括JSON和XML。
+
+- @RequestParam注解: 用于从请求参数中获取单个值
+- @RequestPart注解: 用于从multipart/form-data类型的请求中获取一个或多个部分。
+
+```java
+@PostMapping("/upload")
+public void uploadFile(@RequestPart("file") MultipartFile file, @RequestPart("metadata") String metadata) {
+    // 处理文件上传逻辑
+}
+```
+
+<br>
+
+**与@Multipart注解相比**  
+@RequestPart注解更加灵活，可以处理更多类型的请求。
+
+@Multipart注解只能处理multipart/form-data类型的请求，而@RequestPart注解可以处理更多类型的请求，包括JSON和XML。
+
+另外，@Multipart注解不支持多部分请求，而@RequestPart注解可以处理多个部分。
+
+<br>
+
+**注意:**  
+在使用@RequestPart注解时，如果您指定了一个部分的名称，那么Spring Boot将会尝试从multipart/form-data类型的请求中获取这个指定的部分数据，如果请求中不包含该部分，则会抛出异常。
+
+@RequestPart注解中指定了"file"作为参数名，表示我们要获取请求中名为"file"的文件部分数据。如果请求中不包含名为"file"的文件部分数据，则会抛出异常。
+
+<br>
+
+此外，当使用@RequestPart注解处理文件上传时，必须确保请求中包含文件部分，否则将抛出异常。
+
+个异常通常是MissingServletRequestPartException类型的异常，它会告诉您请求中缺少了指定的部分。因此，在使用@RequestPart注解时，一定要确保请求中包含了指定的部分数据，否则您的代码将无法正常工作。
+
+<br>
+
+### MultipartFile file 接收的文件是临时文件
+我们在控制器方法中接收到的file是临时文件 如果我们没有做转存的处理 那么该次请求结束后 临时文件就会从内存中消失
+
+<br>
+
+**<font color="#C2185B">file对象.transferTo()</font>**  
+调用file对象身上的方法, 将文件转存到一个指定的位置
+
+**参数:**  
+File file, 通过File对象指定我们的转存的位置
+
+<br>
+
+**注意:**  
+我们指定的位置 必须要存在(但是可以通过判断目录是否存在 不存在则创建一个目录)
+
+<br>
+
+### 实现功能:
+
+**@Value注解读取application.yml中定义的数据**  
+我们可以通过该注解读取 项目配置文件中定义的自定义数据, 比如我们可以将 文件上传后保存路径 定义在配置文件中 供整个项目读取使用
+
+1. 在application.yml中定义数据:
+```s
+# 自定义属性:
+reggie:
+  path: /Users/liulin/Desktop/test/
+```
+
+2. 使用 @Value("${reggie.path}") 读取数据 并将其放入到注解所标识的变量中
+```java
+public class CommonController {
+
+  @Value("${reggie.path}")
+  private String basePath;
+
+}
+```
+
+<br>
+
+**要点1:**  
+我们会将文件上传到一个指定的目录下, 这个指定的目录必须要提前创建好 不然会报错 所以我们可以利用如下的逻辑 判断如果该目录不存在 则先创建
+```java
+public class CommonController {
+
+  @Value("${reggie.path}")
+  private String basePath;
+
+  @PostMapping("/upload")
+  public Result<String> upload(MultipartFile file) {
+
+    // 创建一个目录对象
+    File dir = new File(basePath);
+    // 如果该目录不存在则创建该目录, 则创建该目录
+    if(!dir.exists()) {
+      dir.mkdirs();
+    }
+  }
+
+}
+```
+
+这样能确保该目录结构一定是存在的
+
+<br>
+
+**要点2:**  
+获取上面文件的原文件名
+```java
+String filename = file.getOriginalFilename();
+```
+
+<br>
+
+**要点3:**  
+为了防止上传文件名重复会覆盖的情况 我们使用uuid来自定义文件名
+```java
+// 获取原文件名
+String originalFilename = file.getOriginalFilename();
+
+// 获取文件名后缀
+String suffix = originalFilename.substring(originalFilename.lastIndexOf("."))
+
+// 获取新文件名: uuid要toString
+String filename = UUID.randomUUID().toString() + suffix
+```
+
+<br>
+
+**要点4:**  
+上传文件成功后 一般会将上传后的新的文件名返回给前端 供前端来使用
+
+<br>
+
+### 代码部分:
+```java
+@PostMapping("/upload")
+// 文件上传表单项的name名为file 所以我们的形参名为file
+public Result<String> upload(MultipartFile file) {
+
+  // 创建一个目录对象
+  File dir = new File(basePath);
+  // 如果该目录不存在则创建该目录
+  if(!dir.exists()) {
+    // 创建该目录
+    dir.mkdirs();
+  }
+  
+  // 获取原始的文件名(获取上传文件的文件名)
+  String originalFilename = file.getOriginalFilename();
+
+  // 获取文件名后缀
+  String suffix = originalFilename.substring(originalFilename.lastIndexOf("."));
+
+  // 获取新的文件名
+  String fileName = UUID.randomUUID().toString() + suffix
+
+    // 将临时文件转存到指定的位置
+  try {
+    file.transferTo(new File(basePath + fileName));
+  } catch (IOException e) {
+    e.printStackTrace();
+  }
+
+  // 文件上传的返回值最好的 filename 因为前端需要上传后的文件名, 因为dish表中的image字段存储的就是上传后的文件名
+  return Result.success(fileName);
+}
+```
+
+<br><br>
+
+# 文件的下载
+
+## 文件下载介绍
+文件下载 也称为download 是指将文件从服务器传输到本地计算机的过程
+
+<br>
+
+**通过浏览器进行文件下载, 通常有两种表现形式:**
+1. 以附件形式下载 弹出保存对话框, 将文件保存到指定的磁盘目录
+2. 直接在浏览器中打开
+
+通过浏览器进行文件下载 本质就是服务端将文件以流的形式写回浏览器的过程
+
+<br><br>
+
+## 梳理流程
+文件下载是需要客户端先发起请求, 然后后台通过输出流的方式将文件数据写回到浏览器
+
+比如前端可以通过 ``<img>``标签来发起请求
+```html
+<img v-if="imgUrl" :src="imgUrl" />
+```
+
+<br>
+
+**向/common/download接口发起请求**  
+```js
+// 上传完成后的回调
+handleAvatarSuccess(res, file, fileList) {
+  this.imgUrl = `/common/download?name=${res.data}`
+}
+```
+
+<br>
+
+### 实现逻辑
+1. 文件下载要通过输入流 和 输出流配置完成
+  - 输入流: 将文件读取到内存中
+  - 输出流: 将文件写回浏览器
+
+2. 获取输出流的方式: res.getOutputStream();
+
+```java
+// 文件下载:
+// 通过输出流向浏览器页面写数据就可以了 不需要返回值
+@GetMapping("/download")
+// name: 接收url上的name参数 要下载的文件名
+public void download(String name, HttpServletResponse res) {
+
+
+  // 通过输入流: 根据文件名 将文件读取到内存中
+  try {
+    FileInputStream fis = new FileInputStream(new File(basePath + name));
+
+    // 通过输出流: 将文件写回浏览器 在浏览器展示图片
+    ServletOutputStream outputStream = res.getOutputStream();
+
+
+    // 设置响应回去的文件类型
+    res.setContentType("image/jpeg");
+
+    byte[] bytes = new byte[1024];
+    int len = 0;
+    while((len = fis.read(bytes)) != -1) {
+      outputStream.write(bytes, 0, len);
+      outputStream.flush();
+    }
+
+
+    // 关闭资源
+    outputStream.close();
+    fis.close();
+
+  } catch (Exception e) {
+    e.printStackTrace();
+  }
+}
+```
+
+<br><br>
+
+# 新增菜品
+
+## 需求分析
+后台系统中可以管理菜品信息, 通过新增功能来添加一个新的菜品 在添加菜品时需要选择当前菜品所属的菜品分类
+
+并且需要上传菜品的图片, 在移动端会按照菜品分类来展示对应的菜品信息
+
+<br><br>
+
+## 数据模型
+新增菜品 其实就是将新增页面录入的菜品信息插入到dish表, 如果添加了口味做法 还需要向dish_flavor表插入数据
+
+所以在新增菜品时, 涉及到两个表
+
+- dish: 菜品表
+- dish_flavor: 菜品口味表
+
+<br>
+
+### 菜品口味实体类
+```java
+package com.sam.reggie.entity;
+
+
+/**
+ 菜品口味
+ */
+@Data
+public class DishFlavor implements Serializable {
+
+  private static final long serialVersionUID = 1L;
+
+  private Long id;
+
+
+  //菜品id
+  private Long dishId;
+
+
+  //口味名称
+  private String name;
+
+
+  //口味数据list
+  private String value;
+
+
+  @TableField(fill = FieldFill.INSERT)
+  private LocalDateTime createTime;
+
+
+  @TableField(fill = FieldFill.INSERT_UPDATE)
+  private LocalDateTime updateTime;
+
+
+  @TableField(fill = FieldFill.INSERT)
+  private Long createUser;
+
+
+  @TableField(fill = FieldFill.INSERT_UPDATE)
+  private Long updateUser;
+
+
+  //是否删除
+  private Integer isDeleted;
+
+}
+```
+
+<br><br>
+
+## 新增菜品: 梳理逻辑
+这里我们梳理下新增菜品时 前端页面和服务端的交互过程, 也就是下面的4次请求
+
+1. 点击 [新建菜品] 按钮后, 会进入到新建菜品的form页面(backend/page/food/add.html), 页面加载时会发送ajax请求, 请求服务器 菜品分类 数据, 并将展示到 [菜品分类] 下拉框中
+
+2. 上传 [菜品图片] 时, 会发送请求进行图片上传, 请求服务器将图片保存到服务器
+
+3. [菜品图片] 回显时, 会通过 ``<img src>`` src地址自发请求到服务器, 请求图片路径进行回显
+
+4. 点击 [保存] 按钮 发送ajax请求 将菜品相关数据以json形式提交到服务器
+
+<br>
+
+开发新增菜品功能 其实就是在服务器端编写代码去处理前端页面发送的这4次请求
+
+<br>
+
+**注意:**  
+图片的上传 和 回显上面已经完成了 就是请求的 /common/upload
+
+这里需要注意 文件上传 和 下载的目录指定是在 application.yml 配置文件中指定了, 尤其是图片的回显会自动向该目录请求图片资源
+
+我们将该目录定义为桌面了, 
+
+<br><br>
+
+## 新增菜品: 请求菜品分类数据
+点击 [新建菜品] 按钮后, 会进入到新建菜品的form页面(backend/page/food/add.html), 页面加载时会发送ajax请求, 请求服务器 菜品分类 数据, 并将展示到 [菜品分类] 下拉框中
+
+<br>
+
+### 前端页面相关
+新建菜品页面在一加载的时候就会发起请求
+```js
+getDishList () {
+  // api方法：
+  getCategoryList({ 'type': 1 }).then(res => {
+    if (res.code === 1) {
+      this.dishList = res.data
+    } else {
+      this.$message.error(res.msg || '操作失败')
+    }
+  })
+},
+```
+
+<br>
+
+- 请求地址: /category/list
+- 请求方法: get
+- 请求参数: type
+- 响应数据:
+  - code
+  - data
+
+<br>
+
+### 控制器方法:
+根据条件动态的查询分类的数据
+
+1. 控制方法的返回值是 List集合
+
+2. 控制器方法中接收前端的请求参数 最好使用实体类, 因为后期如果扩展请求参数 它更加的好一些
+
+3. 在查询数据库的时候最好判断下参数是否为空
+
+4. 下面的查询中填入了排序, 因为我们的分类数据表中有sort字段, 优先级高的排在上面
+
+
+```java
+@GetMapping("/list")
+public Result<List<Category>> categoryList(Category category) {
+
+  LambdaQueryWrapper<Category> categoryLambdaQueryWrapper = new LambdaQueryWrapper<>();
+
+  // 判断下 type是否为空, 并添加2级排序
+  categoryLambdaQueryWrapper
+      .eq(category.getType() != null,  Category::getType, category.getType())
+      .orderByAsc(Category::getSort)
+      .orderByDesc(Category::getUpdateTime);
+
+  // 查询分类数据集合
+  List<Category> list = categoryService.list(categoryLambdaQueryWrapper);
+
+  return Result.success(list);
+
+}
+```
+
+<br><br>
+
+## 新增菜品: 保存新增的菜品
+当用户添加完新增菜品的数据 然后点击 [保存] 时会发请求到服务器
+
+<br>
+
+### 前端相关:
+- 请求地址: /dish
+- 请求方法: post
+- 请求参数: 
+```js
+{
+  "name":"测试菜品001",
+
+  // 最终存到数据库是一 分 为单位, 前端自动加了两个0
+  "price":10000,
+
+  "code":"",
+
+  "image":"441cb81e-f116-4e01-af6b-6586e40c94f5.jpg",
+
+  "description":"hello",
+
+  // 1起售, 0停售, 新增时肯定是起售状态
+  "status":1,
+
+  // 菜品分类id
+  "categoryId":"1397844263642378242",
+
+  // 口味
+  "flavors":[{"name":"甜味","value":"[\"少糖\"]",
+  "showOption":false}]
+  }
+```
+
+<br><br>
+
+## 后台相关:
+
+### 要点1:
+1. 我们保存 菜品数据 保存到 dish 数据表
+  - name
+  - categoryId
+  - price
+  - code
+  - image
+  - description
+  - status
+  - sort
+
+2. 我们保存 口味数据 保存到 dish_flavor 数据表
+  - dishId
+  - name
+  - value
+
+也就是说我们在插入这两张表的时候 需要整理各个表所需要的数据
+
+<br>
+
+**dish数据表字段:**  
+```java
+private Long id;
+
+//菜品名称
+private String name;
+
+//菜品分类id
+private Long categoryId;
+
+//菜品价格
+private BigDecimal price;
+
+//商品码
+private String code;
+
+//图片
+private String image;
+
+//描述信息
+private String description;
+
+//0 停售 1 起售
+private Integer status;
+
+//顺序
+private Integer sort;
+
+private LocalDateTime createTime;
+
+private LocalDateTime updateTime;
+
+private Long createUser;
+
+private Long updateUser;
+
+//是否删除
+private Integer isDeleted;
+```
+
+<br>
+
+**dish_flavor数据表字段:**  
+```java
+private Long id;
+
+//菜品id
+private Long dishId;
+
+//口味名称
+private String name;
+
+//口味数据list
+private String value;
+
+private LocalDateTime createTime;
+
+private LocalDateTime updateTime;
+
+private Long createUser;
+
+private Long updateUser;
+
+//是否删除
+private Integer isDeleted;
+```
+
+<br>
+
+### 要点2:
+本次请求提交的数据 我们使用什么来接收 Dish实体类是不行的 因为我们提交的数据中 有一个flavor属性, 该属性并不在Dish实体类中
+
+<br>
+
+**解决方式:**  
+既然大部分的请求参数在Dish实体类中, 而有的参数不在Dish实体类中 当有这种情况发生的时候 
+
+**我们新创建一个 DTO实体类** 用于接收前端这种情况的参数
+
+<br>
+
+**DTO使用场景:**  
+之前我们没有使用过DTO, 因为前面的情况 前端发送的参数都是和实体类一一对应的
+
+当前端传送的数据 和 实体类中的属性 不是一一对应的时候, 我们就需要使用专门的DTO来传输
+
+<br>
+
+**DTO:**  
+全称data transfer object, **即数据传输对象**, 一般用于展示层页面与服务层之间的数据传输
+
+<br>
+
+**DishDto:**  
+dto都会有自己的包
+
+DishDto会继承Dish, 也就是说Dish中的属性 它都有 同时扩展新的属性
+
+```java
+package com.itheima.reggie.dto;
+
+@Data
+public class DishDto extends Dish {
+
+  // 在Dish的基础上 扩展flavors
+  private List<DishFlavor> flavors = new ArrayList<>();
+
+  private String categoryName;
+
+  private Integer copies;
+}
+
+```
+
+<br>
+
+**flavors:**  
+前端页面传递口味的时候是一个数组, 其中每一个数组元素都是一个对象, 每一个对象就表示一个DishFlavor的实例对象
+
+所以在声明的时候将其声明为 ``List<DishFlavor>``
+```js
+"flavors":[{"name":"甜味","value":"[\"少糖\"]","showOption":false}]
+```
+
+<br>
+
+**categoryName:**  
+暂时没有用到, 后续会使用
+
+<br>
+
+**copies:**  
+暂时没有用到, 后续会使用
+
+<br>
+
+### 要点3:
+我们要在该次请求中向两张表添加数据 所以我们要在DishService接口中扩展我们自己的方法 来处理两张表的逻辑
+
+<br>
+
+**DishService接口:**  
+```java
+package com.sam.reggie.service;
+
+public interface DishService extends IService<Dish> {
+
+  // 名字起的具体些
+  void saveWithFlavor(DishDto dishDto);
+}
+```
+
+<br>
+
+### 要点4:
+实体类中多出来的属性 不会被保存到数据库  
+
+因为DishDto实体类 继承了 Dish实体类, 意味着Dish实体类中的属性 DishDto 它都有
+
+所以在我们向数据库保存Dish的数据的时候 可以直接使用DishDto
+
+<br>
+
+### 要点5:
+因为我们操作了两张表 所以要在方法上加入事务功能
+1. 业务层实现类中的方法上加入 @Transactional 注解
+2. 主启动类要开启事务功能支持 @EnableTransactionManagement
+
+<br>
+
+**DishServiceImpl实现类:**  
+新增菜品 同时保存对应的口味数据
+
+```java
+package com.sam.reggie.service.impl;
+
+import java.util.List;
+
+@Service
+public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements DishService {
+
+  @Autowired
+  private DishFlavorService dishFlavorService;
+
+  // 扩展自己的service方法 用于处理前端新增菜品时 需要往两张表中插入数据的问题
+  @Override
+  @Transactional
+  public void saveWithFlavor(DishDto dishDto) {
+    
+
+    // 保存菜品的基本信息到菜品表 dish
+    /*
+      不用这么写
+      Dish dish = new Dish();
+      dish.setName(dishDto.getName());
+      dish.setCategoryId(dishDto.getCategoryId());
+      dish.setPrice(dishDto.getPrice());
+      dish.setImage(dishDto.getImage());
+      dish.setDescription(dishDto.getDescription());
+      dish.setStatus(dishDto.getStatus());
+    */
+    
+    // 因为实体类中多出来的属性不会被保存到数据库, 所以DishDto实体类 可以当做是Dish来用(因为继承)
+    this.save(dish);
+
+
+
+    // 保存菜品口味数据到菜品表 dish_flavor
+    /*
+    
+      我们使用 MyBatis 的批量保存的方式
+      List<DishFlavor> flavors = dishDto.getFlavors();
+
+      for (DishFlavor flavor : flavors) {
+        DishFlavor dishFlavor = new DishFlavor();
+        dishFlavor.setName(flavor.getName());
+        dishFlavor.setValue(flavor.getValue());
+        dishFlavorService.save(dishFlavor);
+      }
+    */
+    
+
+
+    /*
+      保存菜品口味数据到菜品表 dish_flavor
+      dish_flavor表中有3个字段是必须的
+      - dishId
+      - name
+      - value
+
+      而我们前台传递的数据中只有 flavors数组 并没有 dishId 只有name和value, 所以我们要处理下 dishId的问题
+
+      上面我们已经将新增菜品保存到数据库了, 所以我们可以拿到插入数据库后的主键
+
+      因为 mybatis-plus 中的 insert方法不仅可以完成插入数据的操作, 还可以在插入数据后 通过实体类获取新插入数据的主键
+    */
+    // 通过实体类本身拿到插入数据库之后的主键
+    Long dishId = dishDto.getId();
+
+    List<DishFlavor> flavors = dishDto.getFlavors();
+    for (DishFlavor flavor : flavors) {
+      flavor.setDishId(dishId);
+    }
+
+    dishFlavorService.saveBatch(flavors);
+  }
+}
+```
+
+<br>
+
+**控制层方法:**  
+```java
+@PostMapping
+// 使用DishDto来接收前端的请求参数
+public Result<String> save(@RequestBody DishDto dishDto) {
+  // 往两张表中插入数据的逻辑 丢到service层中处理
+  dishService.saveWithFlavor(dishDto);
+  return Result.success("添加菜品成功");
+}
+```
+
+<br><br>
+
+# 菜品信息的分页查询
+
+## 需求分析
+系统中的菜品列表需要分页处理, 我们需要在列表上展示菜品数据表中的基本信息之外 还要展示菜品所对应的图片 和 菜品所对应的分类名称
+
+<br>
+
+### 要点:
+1. 我们需要在菜品列表中展示 图片
+2. 我们需要在菜品列表中展示 菜品分类
+
+<br>
+
+**图片问题:**  
+页面会利用 ``<img src>`` 自发请求, 服务器将图片的二进制数据响应回页面 页面就会自动展示
+ 
+<br>
+
+**展示 菜品分类:**  
+在 Dish菜品表 中 并没有Category的分类名称, 我们的菜品表中只保存了category_id
+
+我们要展示分类的名称就需要查询分类表
+
+<br><br>
+
+## 梳理过程
+1. 列表页面在加载的时候就会发起ajax请求 并携带 page pageSize name等参数 获取分页数据
+  - 请求地址: /dish/page
+  - 请求方式: get
+  - 请求参数: page pageSize name
+
+2. 列表页面还会发起图片下载的请求, 也就是列表中图片的src属性的自发请求
+
+<br><br>
+
+## 控制器方法:
+```java
+@GetMapping("/page")
+public Result<Page<Dish>> list(Integer page, Integer pageSize, String name) {
+
+
+  // 创建Page对象 传入分页数据
+  Page<Dish> dishPage = new Page<>(page, pageSize);
+
+
+  // 创建条件构造器 判断name是否为空 为空则不拼接 使用模糊查询
+  LambdaQueryWrapper<Dish> dishLambdaQueryWrapper = new LambdaQueryWrapper<>();
+  dishLambdaQueryWrapper
+      .like(StringUtils.isNotBlank(name), Dish::getName, name)
+      .orderByDesc(Dish::getUpdateTime);
+
+
+  // 调用分页方法
+  dishService.page(dishPage, dishLambdaQueryWrapper);
+
+
+  // 我们返回的是 Page<Dish>
+  return Result.success(dishPage);
+}
+```
+
+<br>
+
+### 问题:
+我们上面的代码有一个问题, 就是菜品分类列表中有 [菜品分类] 这一列是空白 没有任何数据
+
+这是因为我们返回的Page对象中包含的是Dish实体类, ``Page<Dish>``
+
+而Dish实体类中并没有categoryName属性(dish数据表中没有category_name字段)
+
+Dish实体类中只有categoryId属性, 也就是说我们缺少一个categorName属性
+
+<br>
+
+**也就是说我们返回的 ``Page<Dish>`` 中的属性不够, 我们怎么才能让其多返回一个字段呢?**
+
+因为页面需要什么样的数据 服务端就要对应返回响应的数据, 现在页面不仅仅需要Dish中的数据, 还额外需要categoryName
+
+<br>
+
+
+
+<br>
+
+### 解决方法:
+我们还是需要使用 DishDto, **DishDto继承了Dish** 所以DishDto中不仅有Dish中所有的属性 还可以扩展自己的 categoryName属性
+
+这样我们查询出来的新的字段就有存放的实体类了
+
+<br>
+
+**思路:**  
+我们只有 Dish -> DishService -> DishMapper 也就是说我们能通过DishService查询到的只有 dish 表
+
+**首先**, 所以我们先通过DishService查询分页数据, **这样查询到的数据就会在 dishPage 对象中**
+```java
+// dishPage 对象
+Page<Dish> dishPage = new Page<>(page, pageSize);
+
+// 条件
+LambdaQueryWrapper<Dish> dishLambdaQueryWrapper = new LambdaQueryWrapper<>();
+dishLambdaQueryWrapper
+  .like(StringUtils.isNotBlank(name), Dish::getName, name)
+  .orderByDesc(Dish::getUpdateTime);
+
+// 查询
+dishService.page(dishPage, dishLambdaQueryWrapper);
+```
+
+<br>
+
+**然后**, 我们创建 DishDto Page对象
+```java
+Page<DishDto> dishDtoPage = new Page<>();
+```
+这时dishDtoPage对象中是空的, 但是它包括了页面中需要用到的categoryName属性
+
+接下来我们就要为这个空的dishDtoPage对象进行赋值
+
+<br>
+
+**page对象中的属性:**  
+```java
+page: {
+  List<T> records
+  long size
+  long current
+  <OrderItem> orders
+  boolean optimizeCountSql
+  boolean isSearchCont
+  boolean hitCount
+  String countId
+  Long maxLimit
+}
+```
+
+<br>
+
+**首先**, 我们为 dishDtoPage 中除了 records属性 之外的属性进行赋值
+
+<br>
+
+**<font color="#C2185B">BeanUtils.copyProperties(Object source, Object target, [String ignoreProperties])</font>**  
+将source中的属性复制到target中, 如果有不想复制的属性就使用参数3来指定
+
+```java
+BeanUtils.copyProperties(dishPage, dishDtoPage, "records");
+```
+
+<br>
+
+**然后**, 我们为 dishDtoPage 中 records 属性进行赋值
+
+1. 从dishPage对象中获取records(它里面有除了categoryName之外的数据了)
+
+2. 遍历该集合, 完成如下的逻辑
+  1. 创建 dishDto 对象
+  2. 使用 BeanUtils.copyProperties 方法将 ``List<Dish>`` 中的每一个Dish对象中过的数据 赋值给 ``List<DishDto>`` 中的每一个DishDto对象
+
+  3. 额外处理DishDto中的categoryName属性
+    1. 拿到Dish中的categoryId
+    2. 根据categoryId查询数据库获取到category对象
+    3. 拿到category对象中的categoryName为DishDto中的categoryName属性赋值
+
+4. 将处理好后的``List<DishDto>`` 集合赋值给 dishDtoPage对象中的 records 属性
+
+5. 控制器方法内最终返回dishDtoPage
+
+<br>
+
+**总结:**  
+当返回的数据 没有办法使用一个实体类承装的时候 我们可以使用该实体类的Dto, 通过继承的方式扩展额外的属性
+
+为DishDto实体类赋值的时候 还是可以通过Dish类使用 ``BeanUtils.copyProperties(dishPage, dishDtoPage)`` 的方式赋值
+
+<br>
+
+### 代码部分:
+```java
+@GetMapping("/page")
+public Result<Page> list(Integer page, Integer pageSize, String name) {
+
+  // 通过 dishService 查询 dish 表, 将查询结果封装在 dishPage 对象中
+  Page<Dish> dishPage = new Page<>(page, pageSize);
+  
+  // 创建条件构造器 判断name是否为空 为空则不拼接 使用模糊查询
+  LambdaQueryWrapper<Dish> dishLambdaQueryWrapper = new LambdaQueryWrapper<>();
+  dishLambdaQueryWrapper
+      .like(StringUtils.isNotBlank(name), Dish::getName, name)
+      .orderByDesc(Dish::getUpdateTime);
+  
+  // 调用分页方法 将查询到的dish表中的数据 存放到dishPage中
+  dishService.page(dishPage, dishLambdaQueryWrapper);
+  
+  
+  
+  // Dish对象中的属性不够, 页面中还需要使用 categoryName 属性, 我们使用Dto模式来扩展Dish实体类 扩展categoryName
+  Page<DishDto> dishDtoPage = new Page<>();   // 空的page对象 我们要为它进行赋值操作
+  
+  // 为dishDtoPage的属性进行赋值(除了records属性) 
+  BeanUtils.copyProperties(dishPage, dishDtoPage, "records");
+
+  // 为dishDtoPage的 records 属性进行赋值
+  // 1. 从 dishPage 中获取它的 records 集合(里面是有数据的)
+  List<Dish> dishRecords = dishPage.getRecords();
+
+  // 遍历dishRecords集合 拿到每一个Dish对象(item)
+  List<DishDto> list = dishRecords.stream().map(item -> {
+
+    // 创建 DishDto 对象
+    DishDto dishDto = new DishDto();
+
+    // 给dishDto中除了categoryName属性之外的属性赋值
+    BeanUtils.copyProperties(item, dishDto);
+
+    // 获取每一个菜品的分类id
+    Long categoryId = item.getCategoryId();
+
+    // 根据分类id查询category表 获取分类对象 从而拿到categoryName
+    Category category = categoryService.getById(categoryId);
+
+    // 获取分类名称
+    String categoryName = category.getName();
+
+    // 将categoryName赋值给dishDto
+    dishDto.setCategoryName(categoryName);
+
+    // 返回dishDto
+    return dishDto;
+    
+    // 获取到有数据的 List<DishDto>
+  }).collect(Collectors.toList());
+
+
+  // 将处理后的 records 集合 set到 dishDtoPage 对象中
+  dishDtoPage.setRecords(list);
+
+  
+  // 最后我们返回加工后的dto对象
+  return Result.success(dishDtoPage);
+}
+```
+
+<br><br>
+
+# 修改菜品: 页面回显
+
+## 需求分析:
+在菜品管理页面的列表中 我们可以点击 [修改] 按钮 会跳转到修改菜品页面 用户可以编辑信息 点击 [保存] 按钮来完成操作
+
+在 修改菜品 页面 需要回显菜品信息
+
+<br><br>
+
+## 梳理逻辑:
+在菜品管理页面的列表中 我们可以点击 [修改] 按钮, 会携带当前行数据id 跳转到 修改菜品页面(add.html)
+
+页面在加载的时候 会先后发起两次请求
+1. 发送get请求 请求 /category/list 接口 获取菜品分类数据 用于菜品分类下拉框中数据展示 **新增菜品时 已完成**
+
+2. 获取url上的参数 id 调用 init() 方法, 请求该行菜品数据用于回显数据
+  - 请求地址: `/dish/${id}`,
+  - 请求方式: get
+  - 注意该次请求中还要包含 flavors 属性(查询dish_flavor表)
+
+3. 页面发送请求 请求服务端进行图片下载 用于页面图片回显 **文件下载时 已完成**
+
+4. 点击 [保存] 按钮, 页面发送ajax请求将修改后的菜品相关数据以json形式提交服务端
+
+<br><br>
+
+## 功能实现
+
+### 要点:
+修改菜品页面要回显数据 要回显的是两张表的数据, 所以Controller中的返回值需要是 DishDto
+- dish表中的数据
+- dish_flavor表中的数据
+
+<br>
+
+**DishService:**  
+```java
+public interface DishService extends IService<Dish> {
+  // 新增菜品 同时插入菜品对应的口味数据 需要操作两张表 dish dish_flavor
+  void saveWithFlavor(DishDto dishDto);
+
+  // 根据id查询菜品信息 和 对应的口味信息
+  DishDto getDishById(Long id);
+}
+```
+
+<br>
+
+**DishServiceImpl:**  
+```java
+// 根据id查询菜品信息 和 对应的口味信息
+@Override
+public DishDto getDishById(Long id) {
+  // 查询 菜品信息
+  Dish dish = this.getById(id);
+
+
+  // 查询 口味信息, 根据dishId获取口味
+  Long dishId = dish.getId();
+
+  LambdaQueryWrapper<DishFlavor> dishFlavorLambdaQueryWrapper = new LambdaQueryWrapper<>();
+  dishFlavorLambdaQueryWrapper.eq(DishFlavor::getDishId, dishId);
+  List<DishFlavor> list = dishFlavorService.list(dishFlavorLambdaQueryWrapper);
+
+  // 创建DishDto 并为它的各个属性进行赋值
+  DishDto dishDto = new DishDto();
+  BeanUtils.copyProperties(dish, dishDto);
+
+  // 为DishDto中的flavors属性进行赋值
+  dishDto.setFlavors(list);
+
+  return dishDto;
+}
+```
+
+<br>
+
+**Controller:**  
+注意id的类型是Long
+```java
+// 根据id查询 菜品信息 和 对应的口味信息 需要的数据进行回显 要查询两张表
+@GetMapping("/{id}")
+public Result<DishDto> getDishById(@PathVariable Long id) {
+  DishDto dishDto = dishService.getDishById(id);
+  return Result.success(dishDto);
+}
+```
+
+<br><br>
+
+## 修改菜品: 保存修改数据
+当用户在 修改菜品 页面点击 [保存] 按钮后可以保存数据
+
+- 请求地址: /dish
+- 请求方式: put
+- 请求参数: 页面form表单项
+
+<br>
+
+### 要点1:
+我们前端提交的修改数据 分别存储在两张表中
+- dish
+- dish_flavor
+
+<br>
+
+所以我们在保存的时候 也要将数据保存在两张表中
+
+<br>
+
+### 要点2:
+我们要使用 DishDto 来承装前端发送过来的数据
+
+<br>
+
+### 要点3: 
+我们要在 Service层中处理分别往两张表中添加数据的逻辑
+
+<br>
+
+### 要点4:
+我们要使用事务的功能, 因为我们插入数据了
+
+<br>
+
+### 要点5:
+DishDto中的flavors属性 仅仅是dish_flavor表中的 name 和 value字段 我们还需要额外的处理 dish_id 字段
+
+<br>
+
+**DishServiceImpl:**
+```java
+// 保存修改菜品信息
+  @Override
+  @Transactional
+  public void updateDishAndDishFlavor(DishDto dishDto) {
+
+
+    // 更新菜品表的信息, dishDto是Dish的子类 所以没有问题
+    this.updateById(dishDto);
+
+
+    // 修改口味数据的方式
+    // 1. 先清理菜品对应的口味数据 -- delete操作 根据dishId
+    LambdaQueryWrapper<DishFlavor> dishFlavorLambdaQueryWrapper = new LambdaQueryWrapper<>();
+    dishFlavorLambdaQueryWrapper.eq(DishFlavor::getDishId, dishDto.getId());
+    // 这里不能使用 removeById 它需要dishFilavor的id, 这里是根据dishId删除
+    dishFlavorService.remove(dishFlavorLambdaQueryWrapper);
+
+
+    // 2. 再添加新的菜品对应的口味 -- insert操作
+    // 将数据保存到 dish_flavor 表, 并额外处理 dishId
+    List<DishFlavor> flavors = dishDto.getFlavors();
+    flavors = flavors.stream().map(item -> {
+      item.setDishId(dishDto.getId());
+      return item;
+    }).collect(Collectors.toList());
+    dishFlavorService.saveBatch(flavors);
+  }
+```
+
+<br>
+
+**Controller:**  
+```java
+// 保存修改菜品的数据
+@PutMapping
+public Result<String> save(@RequestBody DishDto dishDto) {
+  dishService.saveDishAndDishFlavor(dishDto);
+  return Result.success("修改菜品信息成功");
+}
+```
+
+<br>
+
+**测试:**  
+```sql
+-- 测试: 1639675682198351873
+select d.id, d.name, d.category_id, df.id, df.dish_id, df.name, df.value 
+from dish d
+	inner join dish_flavor df
+	on d.id = df.dish_id
+where d.id = 1639675682198351873
+```
+
+<br><br>
+
+# 套餐管理
+套餐是一组菜品的组合
+
+后台系统中可以管理套餐信息 通过新增套餐功能来添加一个新的套餐
+
+在添加套餐的时候需要选择当前套餐所属的套餐分类 和 包含的菜品, 并且需要上传套餐对应的图片 
+
+在移动端会按照套餐分类来展示对应的套餐
+
+<br><br>
+
+## 数据模型
+新增套餐 就是将新增页面录入的信息插入到 setmeal 表中
+
+还需要向 setmeal_dish 表, 插入套餐和菜品关联的数据 所以新增套餐的时候 涉及到两张表:
+- setmeal: 套餐表
+- setmeal_dish: 套餐菜品关系表
+
+<br>
+
+**setmeal套餐表字段:**  
+```sql
+id category_id name price status code desc img
+```
+
+<br>
+
+**setmeal_dish套餐菜品关系表字段:**
+```sql
+id setmeal_id dish_id name price copies sort
+```
+
+<br><br>
+
+## 准备工作
+- 创建 SetmealDish 实体类
+- 创建 SetmealDto 
+- 创建 SetmealDishMapper
+- 创建 SetmealDishService
+- 创建 SetmealDishServiceImpl
+- 创建 SetmealController
+
+<br>
+
+**SetmealDish实体类:**  
+name 和 price 都属于冗余字段, 因为我们根据dishId查询都可以能查询到的, 类似这样的情况都属于荣誉字段
+
+这里为了方法都定义在表中
+
+```java
+package com.sam.reggie.entity;
+/**
+ * 套餐菜品关系
+ */
+@Data
+public class SetmealDish implements Serializable {
+
+  private static final long serialVersionUID = 1L;
+
+  private Long id;
+
+  //套餐id
+  private Long setmealId;
+
+  //菜品id
+  private Long dishId;
+
+  //菜品名称 （冗余字段）
+  private String name;
+
+  //菜品原价
+  private BigDecimal price;
+
+  //份数
+  private Integer copies;
+
+  //排序
+  private Integer sort;
+
+  @TableField(fill = FieldFill.INSERT)
+  private LocalDateTime createTime;
+
+  @TableField(fill = FieldFill.INSERT_UPDATE)
+  private LocalDateTime updateTime;
+
+  @TableField(fill = FieldFill.INSERT)
+  private Long createUser;
+
+  @TableField(fill = FieldFill.INSERT_UPDATE)
+  private Long updateUser;
+
+  //是否删除
+  private Integer isDeleted;
+}
+```
+
+<br>
+
+**SetmealDto:**  
+Dto是子类 它会继承某个类 为某个类来扩展属性 用于前后端交互
+```java
+package com.sam.reggie.dto;
+
+@Data
+public class SetmealDto extends Setmeal {
+
+  private List<SetmealDish> setmealDishes;
+
+  private String categoryName;
+}
+```
+
+<br><br>
+
+## 梳理交互过程
+新增套餐时 前端和后端会进行如下的 请求交互
+
+**请求1: (已实现)**  
+套餐管理页面中 点击 [新建套餐] 按钮 会跳转到添加套餐页面(backend/page/combo/add.html)
+
+在页面加载的时候页面会发起请求 响应数据会作为 **套餐分类下拉框中展示**
+- 请求地址: /category/list
+- 请求方法: get
+- 请求参数: 
+  - url携带 ?type=2 (套餐的分类)
+
+<br>
+
+**请求2:**  
+套餐管理页面中 点击 [新建套餐] 按钮 会跳转到添加套餐页面(backend/page/combo/add.html)
+
+在页面加载的时候页面会发起请求 响应数据会作为 点击 [添加菜品] 后 **弹出的对话框的左侧 菜品列表 使用**
+- 请求地址: /category/list
+- 请求方法: get
+- 请求参数: 
+  - url携带 ?type=1 (菜品的分类)
+
+<br>
+
+**该次请求在页面挂着的时候也会发起**, 这样 点击 [添加菜品] 按钮后 第一个选项对应的菜品就会有数据
+
+<br>
+
+**请求3:**  
+添加套餐页面中 点击 [添加菜品] 按钮后, 会弹出对话框, 对话框中左侧边栏 有菜品分类按钮, 湘菜 川菜 粤菜 等
+
+点击这些选项会发送对应的请求, 根据菜品的分类查询菜品数据 并展示到窗口中
+
+- 请求地址: /dish/list
+- 请求方法: get
+- 请求参数: url携带 ?categoryId=1397844263642378242
+
+<br>
+
+**该次请求在页面挂着的时候也会发起**, 这样 点击 [添加菜品] 按钮后 第一个选项对应的菜品就会有数据
+
+<br>
+
+**请求4:**  
+页面发送请求进行图片上传 请求服务器将图片保存到服务器
+
+<br>
+
+**请求5:**  
+页面发送请求进行图片下载 将上传的图片进行回显
+
+<br>
+
+**请求6:**  
+点击 [保存] 按钮 发送ajax请求 将套餐相关数据以json形式提交到服务器 保存到
+- 套餐表
+- 套餐菜品关系表
+
+<br><br>
+
+## 新增套餐: 根据分类查询菜品 (请求3)
+添加套餐页面中 点击 [添加菜品] 按钮后, 会弹出对话框, 对话框中左侧边栏 有菜品分类按钮, 湘菜 川菜 粤菜 等
+
+点击这些选项会发送对应的请求, 根据菜品的分类查询菜品数据 并展示到窗口中
+
+- 请求地址: /dish/list
+- 请求方法: get
+- 请求参数: url携带 ?categoryId=1397844263642378242
+
+<br>
+
+### 要点:
+1. 返回给前端多条数据的时候 控制器方法的返回值类型要定义为 List
+
+2. 如果该控制器方法想要对接收前端参数时 使其扩展性更好 则要声明为实体类类型
+  - (Dish dish): 扩展性更好
+  - (Long id): 该控制器方法只能接收 Long id 参数
+
+<br>
+
+3. 查询数据为List并要展示到页面的话, 我们可以对数据进行排序 比如 sort字段 或者 updateTime 字段
+
+```java
+@GetMapping("/list")
+public Result<List<Dish>> list(Dish dish) {
+
+  Long categoryId = dish.getCategoryId();
+
+  LambdaQueryWrapper<Dish> dishLambdaQueryWrapper = new LambdaQueryWrapper<>();
+
+  // 判断请求参数是否为空 为空则不拼接sql (在这里判断我觉得不好 因为category_id为null 不拼接的话 查询的就是所有数据)
+  // 查询状态为1的 停售的不要查出来
+  dishLambdaQueryWrapper
+      .eq(dish.getCategoryId() != null, Dish::getCategoryId, categoryId)
+      .eq(Dish::getStatus, 1)
+      .orderByAsc(Dish::getSort)
+      .orderByDesc(Dish::getUpdateTime);
+  
+  // 停售餐票
+
+  List<Dish> list = dishService.list(dishLambdaQueryWrapper);
+
+  return Result.success(list);
+}
+```
+
+<br><br>
+
+## 新增套餐: 提交新增的套餐数据 (请求6)
+当用户输入完套餐信息 需要保存的时候 会发起如下的请求
+- 请求地址: /setmeal
+- 请求方法: post
+- 请求参数: 
+```js
+{
+  "name": "测试套餐001",
+  "categoryId": "1413342269393674242",
+  "price": 9900,
+  "code": "",
+  "image": "d1b72915-9112-40a3-b7f7-37283cf15301.jpg",
+  "description": "好吃",
+  "status": 1,
+
+  "dishList": [],
+
+  "idType": "1413342269393674242",
+
+  "setmealDishes": [
+    {
+      "copies": 1,
+      "dishId": "1397849739276890114",
+      "name": "辣子鸡",
+      "price": 7800
+    },
+    {
+      "copies": 1,
+      "dishId": "1397850392090947585",
+      "name": "组庵鱼翅",
+      "price": 4800
+    },
+    {
+      "copies": 1,
+      "dishId": "1397850851245600769",
+      "name": "霸王别姬",
+      "price": 12800
+    }
+  ]
+}
+```
+
+<br>
+
+### 要点1:
+虽然前端发送请求的时候传递过来上面的数据, 但是我们选择使用 SetmealDto 来接收的时候 它只能接收到 Setmeal + SetmealDto 中有的属性 如下的两个属性是接收不到的: 
+
+- idType: 套餐分类, 它和categoryId的作用是一样的
+- dishList: 不知道啥
+
+<br>
+
+### 要点2:
+因为是要操作两张表 我们扩展自己的service层 并要在service实现类中添加 @Transactional 注解 来管理事务 保证事务的一致性
+
+<br>
+
+### 要点3:
+如果前端没有传递的属性 但是数据表中有的话 需要我们手动赋值
+
+<br>
+
+**controller:**
+```java
+// 处理 保存添加的套餐信息
+@PostMapping
+// 接收前端请求参数的形参 不能是 Setmeal实体类 因为还有一个setmealDishes属性并不在Setmeal实体类中 我们要使用SetmealDto
+public Result<String> save(@RequestBody SetmealDto setmealDto) {
+
+  /*
+    我们新增套餐的操作 需要向两张表中插入数据 所以我们扩展自己的service层来处理
+    - setmeal
+    - setmeal_dish
+  */
+  setmealService.saveSetmealAndSetmealDish(setmealDto);
+  return Result.success("添加套餐成功");
+}
+```
+
+<br>
+
+**service:**  
+```java
+// 处理新增套餐 往两张表中插入数据的逻辑
+@Override
+@Transactional
+public void saveSetmealAndSetmealDish(SetmealDto setmealDto) {
+  // 向setmeal表插入数据 执行insert操作
+  this.save(setmealDto);
+
+
+  // 向setmeal_dish表中插入数据 执行insert操作
+  /*
+    前端提交过来的数据 只有
+    "copies": 1,
+    "dishId": "1397849739276890114",
+    "name": "辣子鸡",
+    "price": 7800
+
+    还缺少 所以我们要单独处理这两个属性
+    setmeal_id
+    sort -> 它有默认值
+  */
+  List<SetmealDish> setmealDishes = setmealDto.getSetmealDishes();
+  for (SetmealDish setmealDish : setmealDishes) {
+    setmealDish.setSetmealId(setmealDto.getId());
+  }
+
+  setmealDishService.saveBatch(setmealDishes);
+}
+```
+
+<br><br>
+
+# 套餐管理: 列表页面分页
+- 请求地址: /setmeal/page?page=1&pageSize=10
+- 请求方式: get
+
+<br>
+
+### 要点1:
+列表页面除了展示 setmeal 的数据之外, 还需要展示套餐分类(categoryName), 而 categoryName 需要从category表中获取
+
+也就是说我们控制器方法直接返回setmealPage对象是不够的, 我们需要返回 SetmealDto 对象, 它扩展了categoryName
+
+<br>
+
+```java
+@GetMapping("/page")
+public Result<Page> page(Integer page, Integer pageSize, String name) {
+
+  // 查询setmeal表 获取分页数据
+  Page<Setmeal> setmealPage = new Page<>(page, pageSize);
+  LambdaQueryWrapper<Setmeal> setmealLambdaQueryWrapper = new LambdaQueryWrapper<>();
+  setmealLambdaQueryWrapper
+      .like(StringUtils.isNotBlank(name), Setmeal::getName, name)
+      .orderByDesc(Setmeal::getUpdateTime);
+  setmealService.page(setmealPage, setmealLambdaQueryWrapper);
+
+
+
+  // 因为查询到的分页数据中没有 套餐分类(categoryName) 所以利用dto来扩展属性categoryName
+  Page<SetmealDto> setmealDtoPage = new Page<>();
+
+  // 将查询到的数据 除了records 复制到新的setmealDtoPage对象中
+  BeanUtils.copyProperties(setmealPage, setmealDtoPage, "records");
+
+  // 获取 setmealPage 有数据的 records
+  List<Setmeal> records = setmealPage.getRecords();
+
+  // 遍历records, 拿到categoryId 查询category表获取categoryName 并将records中的每一项Setmeal转换为SetmealDto, 并给每一个SetmealDto的categoryName进行赋值
+  List<SetmealDto> list = records.stream().map(item -> {
+    SetmealDto setmealDto = new SetmealDto();
+    BeanUtils.copyProperties(item, setmealDto);
+
+    Long categoryId = item.getCategoryId();
+    Category category = categoryService.getById(categoryId);
+    String categoryName = category.getName();
+    
+    setmealDto.setCategoryName(categoryName);
+    return setmealDto;
+  }).collect(Collectors.toList());
+
+  setmealDtoPage.setRecords(list);
+
+  return Result.success(setmealDtoPage);
+}
+```

@@ -20,7 +20,7 @@ public class GlobalExceptionHandler {
   @ExceptionHandler(SQLIntegrityConstraintViolationException.class)
   // 处理方法中要声明该异常类型的形参
   public Result<String> exceptionHandler(SQLIntegrityConstraintViolationException ex) {
-    log.error("--- > ", ex.getMessage());
+    log.error("sql侧异常信息为: ", ex.getMessage());
 
     // SQLIntegrityConstraintViolationException 里面包含了很多sql的异常异常 不一定是我们想要捕捉的 添加了重复的username "Duplicate entry" 异常 所以我们要判断下 异常信息中是否有 Duplicate entry 关键子 如果有我们就能确定是我们想要的异常
 
@@ -33,5 +33,13 @@ public class GlobalExceptionHandler {
     }
 
     return Result.error("未知错误");
+  }
+
+
+  // 全局异常处理中处理自己的定义的业务异常
+  @ExceptionHandler(CustomException.class)
+  // 处理方法中要声明该异常类型的形参
+  public Result<String> customExceptionHandler(CustomException ex) {
+    return Result.error(ex.getMessage());
   }
 }

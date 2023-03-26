@@ -16,3 +16,8 @@ mybatis-plus:
   global-config:
     db-config:
       id-type: ASSIGN_ID
+
+
+# 自定义属性:
+reggie:
+  path: /Users/liulin/Desktop//Pic/reggie/imgs/
