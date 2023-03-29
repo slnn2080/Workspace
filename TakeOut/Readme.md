@@ -1306,6 +1306,22 @@ public class LoginCheckFilter implements Filter {
 
 <br>
 
+**要点:**  
+如果请求路径不在白名单中 就会验证用户的登录状态, 如果用户没有登录则返回 code = 0 && msg = NOTLOGIN, 这时前端的 **响应拦截器** 中就会判断  
+如果命中则跳转会登录页
+
+```js
+if (res.data.code === 0 && res.data.msg === 'NOTLOGIN') {// 返回登录页面
+  console.log('---/backend/page/login/login.html---')
+  localStorage.removeItem('userInfo')
+  window.top.location.href = '/backend/page/login/login.html'
+} else {
+  return res.data
+}
+```
+
+<br>
+
 ### 扩展: 测试类的问题
 SpringBoot中 测试类所在的包好像要和要测试的类所在的包一致
 
@@ -4956,3 +4972,1314 @@ public Result<Page> page(Integer page, Integer pageSize, String name) {
   return Result.success(setmealDtoPage);
 }
 ```
+
+<br><br>
+
+# 删除套餐
+套餐管理列表页面 可以点击如下的两个位置 进行套餐的删除
+- 点击每行 操作列 中的 [删除] 按钮
+- 点击每行 第一列 中的 [x] 复选框按钮, 然后点击 [批量删除]
+
+可以一次删除一个套餐 或 多个套餐
+
+<br>
+
+**注意:**  
+只能删除 **停售** 套餐, 对于状态为售卖中的套餐不能删除 需要先停售 然后才能删除
+
+<br><br>
+
+## 梳理交互过程
+
+### 请求1
+删除单个套餐时, 页面发送ajax请求 根据套餐id删除对应的套餐
+
+- 请求地址: /setmeal?ids=xxxxxxx
+- 请求方式: delete
+
+<br>
+
+### 请求2:
+删除多个套餐的时候 页面发送ajax请求 根据提交的多个套餐的id删除对应套餐
+
+- 请求地址: /setmeal?ids=xxxxxxx,xxxxxxx
+- 请求方式: delete
+
+<br>
+
+### 前端逻辑
+**单删的情况:**  
+点击 [删除] 按钮 会触发下面的回调 并穿入id
+```js
+@click="deleteHandle('单删', scope.row.id)"
+```
+
+<br>
+
+**批量的情况:**  
+点击 [单选框] 后 会触发, ``@selection-change="handleSelectionChange"`` 指定的回调
+
+handleSelectionChange(row)回调会默认接受到该行的数据, row的是一个[{}, {}]数组, 将选中的多行数据放在其中
+
+然后通过该回调会收集ids 放在checkList中
+```js
+handleSelectionChange (row){
+  let checkArr = []
+  row.forEach((n) => {
+    checkArr.push(n.id)
+  })
+  this.checkList = checkArr
+},
+```
+
+<br>
+
+```js
+@click="deleteHandle('批量', null)
+
+// 发起deleteDish请求
+deleteDish(type === '批量' ? this.checkList.join(',') : id)
+```
+
+<br>
+
+观察删除 单个套餐 和 批量删除套餐的请求信息可以发现, 两种请求的 地址 和 请求方式 都是相同的, **不同的是传递的id个数**, 所以在服务端可以提供一个方法统一处理
+
+<br><br>
+
+## 删除套餐: 功能实现
+
+### 要点1: 接收前端参数的问题
+前端在批量删除的时候 有可能会传递 1个id, 有可能会传递多个id 
+1. ids=5145474
+2. ids=5145474,5145474
+
+<br>
+
+这时我们在控制器方法中如何定义形参来接收?
+
+<br>
+
+**疑惑?**  
+前端发送的是字符串(5145474,5145474), 我们定义形参的时候的时候怎么办?
+
+<br>
+
+**方式1:**  
+定义为 (String ids) 之后需要我们自己处理字符串
+
+<br>
+
+**方式2:**  
+定义为 ``@RequestParam List<Long> ids``, 这样前端定义的()这种形式的字符串 会自动转成集合
+```
+5145474,5145474
+↓
+[1639997188262576129, 1415580119015145474]
+```
+
+<br>
+
+注意, 声明为List接口类型的时候 前面必须使用 @RequestParam 注解, 不然会报错 因为List没有办法实例化
+
+<br>
+
+**方式3:**  
+使用 List 的实现类来接收, ``ArrayList<Integer> ids`` List不能实例化 但是实现类可以
+
+<br>
+
+### 要点2:
+套餐删除逻辑, 我们需要删除两张表中的关于套餐的信息, 套餐菜品关系表中的数据也要删掉
+1. setmeal
+2. setmeal_dish
+
+我们扩展自己service方法, 在service层中完成操作两张表的逻辑
+
+<br>
+
+### 要点3:
+删除逻辑的前提是 我们要删除的套餐必须处于停售状态, 启售状态的套餐是不能删除的
+
+所以我们拿到要删除的套餐ids后, 可以查询数据库
+```sql
+select count(*) from setmeal where id in (1,2,3) and status = 1
+``` 
+
+来查询 1, 2, 3 这三个套餐是否有启售状态的 如果count > 0 则说明有启售状态的 我们就要抛出业务异常
+
+<br>
+
+### 要点4:
+MyBatisPlus中提供了 根据 List ids 的方式 删除数据的方法
+```java
+removeByIds(ids);
+```
+
+<br>
+
+### 要点5:
+我们要删除多条数据, 不仅仅可以调用框架提供的批量删除的方法, 还可以通过sql in + remove的方式来批量删除
+```java
+// delete from setmeal_dish where setmeal_id in (1,2,3)
+LambdaQueryWrapper<SetmealDish> setmealDishLambdaQueryWrapper = new LambdaQueryWrapper<>();
+
+// 组织好 where setmeal_id in (1,2,3)
+setmealDishLambdaQueryWrapper.in(SetmealDish::getSetmealId, ids);
+
+// 批量删除
+setmealDishService.remove(setmealDishLambdaQueryWrapper);
+```
+
+
+<br>
+
+**controller代码:**  
+```java
+@DeleteMapping
+/*
+  ids参数 有两种情况
+    - 163999
+    - 163999,163999
+
+  所以我们选择使用 List来承接, Spring会将 163999,163999 转换为 [163999,163999]
+
+  使用 List 接收时 前面要加上 @RequestParam 注解
+*/
+public Result<String> delete(@RequestParam List<Long> ids) {
+  /*
+    套餐删除逻辑:
+      我们需要删除两张表中的关于套餐的信息, 套餐菜品关系表中的数据也要删掉
+      1. setmeal
+      2. setmeal_dish
+
+    我们扩展自己service方法, 在service层中完成操作两张表的逻辑
+  */
+  setmealService.deleteSetmealAndSetmealDish(ids);
+  return Result.success("删除套餐成功");
+}
+```
+
+<br>
+
+**SetmealServiceImpl实现类代码:**  
+```java
+// 删除套餐
+@Override
+@Transactional
+public void deleteSetmealAndSetmealDish(List<Long> ids) {
+  /*
+    只有停售的套餐才可以删除 启售状态中的套餐是不能删除的
+    查询套餐的状态 确定是否可以删除
+
+    ids是一个id集合, 既然要根据多个id来查询数据表 则使用 in
+    select count(*) from setmeal where id in (1,2,3) and status = 1
+
+    我们查询下 前端传递的id 有没有在启售状态的 如果有则抛出业务异常
+  */
+  LambdaQueryWrapper<Setmeal> setmealLambdaQueryWrapper = new LambdaQueryWrapper<>();
+  setmealLambdaQueryWrapper
+      .in(Setmeal::getId, ids)
+      .eq(Setmeal::getStatus, 1);
+  int count = this.count(setmealLambdaQueryWrapper);
+
+  // 如果不能删除 抛出一个业务异常
+  if(count > 0) {
+    // >0 意味着查询出来数据 就说明前端传递的ids中有启售状态的商品 则不能删除 我们要抛出异常
+    throw new CustomException("套餐正在售卖中, 不能删除");
+  }
+
+  // 如果可以删除 先删除套餐表中的数据
+  this.removeByIds(ids);
+
+  /*
+    再删除套餐关系表中的数据
+    ids是套餐表中的id, 套餐表中的id在setmeal_dish中作为setmeal_id字段出现
+
+    delete from setmeal_dish where setmeal_id in (1,2,3)
+  */
+  LambdaQueryWrapper<SetmealDish> setmealDishLambdaQueryWrapper = new LambdaQueryWrapper<>();
+  setmealDishLambdaQueryWrapper.in(SetmealDish::getSetmealId, ids);
+  setmealDishService.remove(setmealDishLambdaQueryWrapper);
+
+}
+```
+
+<br><br>
+
+# 手机验证码登录
+从这里开始 我们开始开发移动端的功能
+
+<br><br>
+
+## 效果展示:
+```
+输入手机号: _ _ _ _ _ (获取验证码)
+输入验证码: _ _ _ _ _ 
+```
+
+<br><br>
+
+## 短信发送: 
+目前市面上有很多第三方提供的短信服务, 这些第三方短信服务会和各个运营商(移动 联通 电信)对接
+
+我们只需要注册为会员并且按照提供的开发文档进行调用就可以发送短信 需要说明的是 这些短信服务一般都是收费的
+
+<br>
+
+### 常用短信服务
+- 阿里云
+- 华为云
+- 腾讯云
+- 京东
+- 梦网
+- 乐信
+
+<br><br>
+
+## 阿里云短信服务
+阿里云短信服务 short message service 是广大企业客户快速触达手机用户所优选使用的通信能力
+
+调用api或用群发助手 即可发送验证码 通知类 和 营销类短信
+
+国内验证短信秒级到达, 到达率最高可达99%, 国际/港澳台短信覆盖200多个国家和地区 安全稳定 广受出海企业选用
+
+<br>
+
+### 应用场景
+- 验证码
+- 短信通知
+- 推广短信
+
+<br>
+
+### 阿里云官网操作步骤
+1. 官网注册账号:
+```
+https://aliyun.com
+```
+
+<br>
+
+2. 注册后登录
+
+3. 右上角选择 [控制台]
+
+4. 左上角点击 收缩菜单栏, 找到 [云通信]/[短信服务]
+
+5. 进来到短信服务的页面后 左侧菜单栏点击 [国内消息], 会跳转到 文本短信 页面, 在[签名管理]选项卡, 点击 [添加签名] 按钮, 设置短信签名
+```
+短信签名是短信发送者的书名 表示发送方的身份
+
+个人申请很难
+```
+
+6. 点击 [模版管理] 选项卡, 设置短信内容过的模板
+```
+短信模版包含短信发送内容, 场景, 变量等信息
+
+模版内容: 您的验证码为 ${code} 该验证码5分钟内有效 请勿泄露于他人
+```
+
+5. 设置AccessKey, 光标移动到用户头像上, 在弹出的窗口中点击 [AccessKey管理] 点击后 会弹出对话框 对话框中有两个按钮 [继续使用 AccessKey] 和 [开始使用子用户的Accesskey]
+```
+AccessKey简单的说就是一对 用户名 和 密码, 是访问阿里云的秘钥
+
+我们在程序中访问阿里云服务的时候 需要提供用户名和密码 来进行认证鉴权
+
+- 继续使用 AccessKey: 不建议
+  该方式创建的key, 具有该账户的完全的权限
+
+- 开始使用子用户的Accesskey: 建议
+  该方式创建的key, root用户是可以控制子用户的访问权限的
+
+  该方式需要我们创建一个用户, 这个key就挂载到某个用户下面的
+
+  - 创建新用户✅, 设置该用户的访问方式 [控制台访问] 或者 [编程访问] (在java代码中访问)
+
+创建新用户后 会分配一对 AccessKey ID 和 AccessKey Secret 我们存起来 后续在程序中使用
+```
+
+6. 为新用户设置权限  
+点击刚才创建的用户, 找到 [权限管理] 选项卡, 选择 [添加权限] 在选择权限的位置搜索 SMS 选择短消息服务
+
+7. 收回AccessKey, 在用户选项卡中 我们可以禁用或删除AccessKey, 让其失效
+      
+<br><br>
+
+## 短信发送: 代码部分
+使用阿里云短信服务发送短信, 可以参照官方提供的文档就可以
+
+<br>
+
+### 具体步骤:
+我们使用的是Java SDK的方式
+
+<br>
+
+1. 导入依赖
+```xml
+<!--阿里云短信服务-->
+<dependency>
+  <groupId>com.aliyun</groupId>
+  <artifactId>aliyun-java-sdk-core</artifactId>
+  <version>4.5.16</version>
+</dependency>
+<dependency>
+  <groupId>com.aliyun</groupId>
+  <artifactId>aliyun-java-sdk-dysmsapi</artifactId>
+  <version>2.1.0</version>
+</dependency>
+```
+
+<br>
+
+2. 调用API: (短信服务页面/左侧菜单栏/帮助文档 or 右上角头像左边的问号里)
+
+<br>
+
+### 创建阿里云发送短信的 工具类
+我们将该类放到 utils 包下
+```java
+package com.itheima.reggie.utils;
+
+import com.aliyuncs.DefaultAcsClient;
+import com.aliyuncs.IAcsClient;
+import com.aliyuncs.dysmsapi.model.v20170525.SendSmsRequest;
+import com.aliyuncs.dysmsapi.model.v20170525.SendSmsResponse;
+import com.aliyuncs.exceptions.ClientException;
+import com.aliyuncs.profile.DefaultProfile;
+
+/**
+ * 短信发送工具类
+ */
+public class SMSUtils {
+
+/**
+ * 发送短信
+ * @param signName 签名: 官网控台中审核通过的
+ * @param templateCode 模板: 官网控台中审核通过的
+ * @param phoneNumbers 手机号
+ * @param param 参数: 官网模版中的变量的值
+ */
+public static void sendMessage(String signName, String templateCode,String phoneNumbers,String param){
+
+    // 设置自己的 AccessKey
+    DefaultProfile profile = DefaultProfile.getProfile("cn-hangzhou", "自己的AccessKey ID", "自己的AccessKey Secret");
+
+    IAcsClient client = new DefaultAcsClient(profile);
+
+    SendSmsRequest request = new SendSmsRequest();
+    request.setSysRegionId("cn-hangzhou");
+    request.setPhoneNumbers(phoneNumbers);
+    request.setSignName(signName);
+    request.setTemplateCode(templateCode);
+    request.setTemplateParam("{\"code\":\""+param+"\"}");
+
+    try {
+      SendSmsResponse response = client.getAcsResponse(request);
+      System.out.println("短信发送成功");
+    }catch (ClientException e) {
+      e.printStackTrace();
+    }
+  }
+
+  // 模拟验证码
+  public static String generateCode() {
+    String code = "";
+    for(int i = 0; i < 6; i++) {
+      code += new Random().nextInt(10);
+    }
+
+    return code;
+  }
+
+}
+
+```
+
+<br><br>
+
+# 手机验证码登录
+为了方便用户的登录, 移动端通常都会提供通过手机验证码登录的功能
+
+手机验证码登录的优点:
+1. 方便快捷 无需注册 直接登录
+2. 使用短信验证码作为登录凭证 无需记忆密码
+3. 安全
+
+<br>
+
+### 登录流程
+1. 输入手机号
+2. 获取验证码
+3. 输入验证码
+4. 点击登录
+5. 登录成功
+
+注意, 通过手机验证码登录 不同的用户使用不同的手机号来登录
+
+<br><br>
+
+## 数据模型:
+我们看看关于手机验证码登录的时候 涉及哪些表的操作
+
+<br>
+
+### user表
+通过手机验证码登录的时候 涉及的表为user表
+
+用户表中没有用户名 和 密码字段, 因为我们使用的是手机验证码登录, 只需要手机号就可以了
+
+```sql
+id: bigint
+name: varchar
+phone: varchar
+sex: varchar 2
+id_number: varchar 18
+
+-- base64吧
+avatar: varchar 500 
+status: int
+```
+
+用户在登录的时候我们需要判断 用户所输入的手机号 是否在用户表中 
+
+如果不在的话说明他是新用户, 这时我们自动的将他保存到用户表中 让它自动完成注册
+
+<br><br>
+
+## 手机验证码: 梳理交互流程
+移动端登录页面 和 后台之间的请求交互
+
+1. 在登录页面(front/page/login.html)输入手机号, 点击 [获取验证码] 按钮, 页面发送ajax请求, 在服务器调用短信服务api给指定的手机号发送验证码
+
+2. 在登录页面输入验证码, 点击 [登录] 按钮, 发送ajax请求 在服务器端处理登录请求
+
+<br><br>
+
+### User实体类
+```java
+package com.sam.reggie.entity;
+
+/**
+ * 用户信息
+ */
+@Data
+public class User implements Serializable {
+
+  private static final long serialVersionUID = 1L;
+
+  private Long id;
+
+  //姓名
+  private String name;
+
+  //手机号
+  private String phone;
+
+  //性别 0 女 1 男
+  private String sex;
+
+  //身份证号
+  private String idNumber;
+
+  //头像
+  private String avatar;
+
+  //状态 0:禁用，1:正常
+  private Integer status;
+}
+
+```
+
+<br>
+
+### 生成验证码的工具类
+我上面自己在SMSUtils类中创建了一个生成验证码的工具类
+
+这里是老师提供的生成验证码的工具类 我们看看思路 也很有意思
+```java
+package com.itheima.reggie.common;
+
+import java.util.Random;
+
+/**
+ * 随机生成验证码工具类
+ */
+public class ValidateCodeUtils {
+  /**
+   * 随机生成验证码
+   * @param length 长度为4位或者6位
+   * @return
+   */
+  public static Integer generateValidateCode(int length){
+      Integer code =null;
+      if(length == 4){
+          code = new Random().nextInt(9999);//生成随机数，最大为9999
+          if(code < 1000){
+              code = code + 1000;//保证随机数为4位数字
+          }
+      }else if(length == 6){
+          code = new Random().nextInt(999999);//生成随机数，最大为999999
+          if(code < 100000){
+              code = code + 100000;//保证随机数为6位数字
+          }
+      }else{
+          throw new RuntimeException("只能生成4位或6位数字验证码");
+      }
+      return code;
+  }
+
+  /**
+   * 随机生成指定长度字符串验证码
+   * @param length 长度
+   * @return
+   */
+  public static String generateValidateCode4String(int length){
+      Random rdm = new Random();
+      String hash1 = Integer.toHexString(rdm.nextInt());
+      String capstr = hash1.substring(0, length);
+      return capstr;
+  }
+}
+```
+
+<br>
+
+### 修改 LoginCheckFilter
+该过滤器是用来检查用户的登录状态 如果用户没有登录直接跳转到登录页面
+
+<br>
+
+**添加移动端登录 和 发送短信接口的白名单:**
+我们在进行手机验证码登录的时候 发送的请求也会经过过滤器处理, 所以我们要将如下的两个请求加入白名单, 让其放行
+- /user/sendMsg
+- /user/login
+
+```java
+String[] urls = new String[] {
+    "/employee/login",
+    "/employee/logout",
+    "/backend/**",
+    "/front/**",
+    "/common/**",
+    "/user/sendMsg", // 移动端发送短信
+    "/user/login",   // 移动端的登录
+    "/dish/**"
+};
+```
+
+<br>
+
+**添加判断移动端用户登录状态**  
+之前我们在过滤器中判断了 后台系统的员工的登录状态 我们还要添加移动端用户是否登录了的逻辑
+
+如果没有登录也需要让其跳转到登录页面
+
+```java
+package com.sam.reggie.filter;
+
+import com.alibaba.fastjson.JSON;
+import com.sam.reggie.common.BaseContext;
+import com.sam.reggie.common.Result;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.AntPathMatcher;
+
+import javax.servlet.*;
+import javax.servlet.annotation.WebFilter;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+
+@Slf4j
+@WebFilter(filterName = "LoginCheckFilter", urlPatterns = "/*")
+public class LoginCheckFilter implements Filter {
+
+  // Spring-Core提供的一个类 路径匹配器: 专门用来比对路径的工具类, 支持通配符的写法
+  public static final AntPathMatcher PATH_MATCHER = new AntPathMatcher();
+
+  // 定义 ThreadLocal 变量
+  public static ThreadLocal<Long> threadLocal = new ThreadLocal<>();
+
+  @Override
+  public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {
+
+    HttpServletRequest req = (HttpServletRequest) servletRequest;
+    HttpServletResponse res = (HttpServletResponse) servletResponse;
+
+    String uri = req.getRequestURI();
+    String[] urls = new String[] {
+        "/employee/login",
+        "/employee/logout",
+        "/backend/**",
+        "/front/**",
+        "/common/**",
+        "/user/sendMsg", // 移动端发送短信
+        "/user/login",   // 移动端的登录
+        "/dish/**"
+    };
+    boolean check = check(uri, urls);
+    if(check) {
+      filterChain.doFilter(req, res);
+      return;
+    }
+
+    Long empId = (Long) req.getSession().getAttribute("employee");
+    if(empId != null) {
+      BaseContext.setCurrentId(empId);
+      filterChain.doFilter(req, res);
+      return;
+    }
+
+
+
+    // 移动端判断用户是否登录
+    Long userId = (Long) req.getSession().getAttribute("user");
+    if(userId != null) {
+      // 用户已登录
+      BaseContext.setCurrentId(userId);
+      filterChain.doFilter(req, res);
+      return;
+    }
+    
+
+
+    String json = JSON.toJSONString(Result.error("NOTLOGIN"));
+    res.getWriter().write(json);
+    return;
+  }
+
+  // urls: 白名单
+  public boolean check(String requestURI, String[] urls) {
+    for (String url : urls) {
+      boolean match = PATH_MATCHER.match(url, requestURI);
+      // 如果返回true 说明匹配上了
+      if(match) return true;
+    }
+
+    return false;
+  }
+}
+```
+
+<br><br>
+
+## 手机验证码登录: 获取验证码
+前端点击 [获取验证码] 按钮 会发起请求, 这里我是自已定义的get接口(正常的话应该是post接口, 这样携带的手机号不会体现在url中)
+
+- 请求地址: /user/sendMsg/${phoneNum}
+- 请求方式: get
+
+<br>
+
+### 逻辑:
+1. 获取手机号
+2. 判断手机号是否为空 如果为空则不发送短信
+3. 生成随机的验证码 (将验证码填入到短信模版中的占位符用)
+4. 发送短信
+5. 将验证码保存到session, 用于一会校验前端输入的验证码是否正确, 手机号作为key
+6. 响应数据
+
+<br>
+
+### 要点:
+1. String类型的验证码方便我们进行比对, 如果是不管是什么类型调用.toString()都可以进行转换
+
+2. 我们将验证码保存到session的时候 可以将手机号作为key, 这样我们可以通过手机号再取出来
+
+```java
+// 发送验证码:
+@GetMapping("/sendMsg/{phone}")
+public Result<String> code(@PathVariable String phone, HttpServletRequest req) {
+
+  // 获取手机号
+  System.out.println("phone = " + phone);
+
+  // 判断手机号是否为空 如果为空则不发送短信
+  if(StringUtils.isNotBlank(phone)) {
+    // 生成随机的验证码
+    String code = SMSUtils.generateCode();
+
+    // 调用阿里云提供的短信服务 发送短信
+    // SMSUtils.sendMessage("瑞吉外卖", "SMS-101012", phone, code)
+
+    // 将验证码保存到session, 用于一会校验前端输入的验证码是否正确, 手机号作为key
+    req.getSession().setAttribute(phone, code);
+
+    // 因为我们不是通过短信的行为给用户验证码 所以我们直接将验证码送给前端
+    return Result.success(code);
+  }
+
+  return Result.error("短信发送失败");
+}
+```
+
+<br><br>
+
+## 手机验证码登录: 登录请求
+点击 [登录] 按钮会发起请求
+
+- 请求地址: /user/login
+- 请求方式: post
+- 请求参数: 
+```js
+{
+  code: "123456",
+  phone: "13909090909"
+}
+```
+
+<br>
+
+### 逻辑:
+1. 获取手机号 和 验证码
+2. 根据手机号 从session中获取 验证码
+3. 判断前端输入的验证码 和 session中的是否一致
+  - 如果不一致 返回错误
+  - 如果一致 说明登录成功
+    - 登录成功后判断当前手机号是否在用户表中
+      - 如果不在 说明是新用户 让其自动完成注册, 也就是**偷偷的**将他的手机号保存到用户表中
+    - 登录成功后还需要将用户id存在session中 过滤器会校验
+
+
+<br>
+
+### 要点:
+1. MyBatis-Plus中获取查询一个对象我们使用 getOne()
+2. 登录成功后 我们需要给页面返回当前登录的用户信息 所以必须是 ``Result<User>``
+3. 前端的请求参数 当不能使用一个实体类进行承装的时候 我们可以有两种选择
+  - UserDto
+  - Map
+
+<br>
+
+### 代码部分:
+```java
+@PostMapping("login")
+/*
+  接收前端参数方案:
+    前端参数是 phone 和 code, 没有可以同时承装它们两个的实体类 有如下的两种方式对应
+    1. UserDto, 我们额外的扩展code属性
+    2. 使用 Map 来接收, Map中的key就是 phone 和 code 和前端的json是一一对应的
+*/
+public Result<User> login(@RequestBody Map<String, String> map, HttpSession session) {
+
+  // 获取手机号 和 验证码
+  String phone = map.get("phone").toString();
+  String code = map.get("code").toString();
+
+  // 根据手机号获取session中的验证码
+  String codeInSession = (String) session.getAttribute(phone);
+
+  // 进行验证码的比对
+  if(codeInSession != null && codeInSession.equals(code)) {
+    // 如果验证码比对成功 则说明登录成功, 判断当前手机号是否是新用户
+    LambdaQueryWrapper<User> userLambdaQueryWrapper = new LambdaQueryWrapper<>();
+    userLambdaQueryWrapper.eq(User::getPhone, phone);
+    User user = userService.getOne(userLambdaQueryWrapper);
+
+    // 说明他是一个新用户 我们偷偷的进行无感注册
+    if(user == null) {
+      user = new User();
+      user.setPhone(phone);
+      userService.save(user);
+    }
+
+    // 登录成功后将用户的id放到session中 过滤器中会校验
+    session.setAttribute("user", user.getId());
+
+    return Result.success(user);
+  }
+
+  return Result.error("登录失败");
+
+}
+```
+ 
+<br><br>
+
+# 导入用户地址簿 相关功能代码
+
+## 需求分析:
+地址簿指的是 移动端消费者用户的地址信息, 用户登录成功后可以维护自己的地址信息
+
+同一个用户可以有多个地址信息 但是只能有一个 **默认地址**
+
+<br>
+
+比如用户的客户端有 地址管理 页面, 该页面 点击 [添加收货地址] 按钮会进入到 新增收货地址页面
+```
+联系人: _ _ _ _ _ 
+手机号: _ _ _ _ _ 
+收货地址: _ _ _ _ _ 
+标签: 无 公司 家 学校
+
+|保存地址|
+```
+
+点击保存地址 我们就新增了一个地址, 新增之后 回到 地址管理页面 就能看到新增的地址
+
+还可以点击 [设为默认地址] 按钮, 就可以将当前的地址设置为默认地址
+
+<br><br>
+
+## 数据模型
+用户的地址信息回存储在address_book表 即地址簿表中
+
+```s
+id bigint --- 必填
+user_id bigint --- 必填
+
+# 联系人
+consignee varchar --- 必填
+sex tinyint --- 必填
+phone varchar --- 必填
+
+# 省份编码
+province_code varchar
+# 省份名称
+province_name varchar
+
+# 城市编码
+city_code varchar
+# 城市名称
+city_name varchar
+
+# 区县编码
+district_code varchar
+# 区县名臣
+district_name varchar
+
+# 详细地址信息
+detail varchar
+
+# 标签: 无 公司 家 学校
+label varchar
+
+# 当前地址信息是否是默认地址 1 0
+is_default tinyint  --- 必填
+```
+
+<br><br>
+
+## 准备工作
+创建地址簿相关组件
+
+<br>
+
+### AddressBook
+```java
+package com.sam.reggie.entity;
+
+import com.baomidou.mybatisplus.annotation.FieldFill;
+import com.baomidou.mybatisplus.annotation.TableField;
+import lombok.Data;
+import java.io.Serializable;
+import java.time.LocalDateTime;
+
+/**
+ * 地址簿
+ */
+@Data
+public class AddressBook implements Serializable {
+
+  private static final long serialVersionUID = 1L;
+
+  private Long id;
+
+  //用户id
+  private Long userId;
+
+  //收货人
+  private String consignee;
+
+  //手机号
+  private String phone;
+
+  //性别 0 女 1 男
+  private String sex;
+
+  //省级区划编号
+  private String provinceCode;
+
+  //省级名称
+  private String provinceName;
+
+  //市级区划编号
+  private String cityCode;
+
+  //市级名称
+  private String cityName;
+
+  //区级区划编号
+  private String districtCode;
+
+  //区级名称
+  private String districtName;
+
+  //详细地址
+  private String detail;
+
+  //标签
+  private String label;
+
+  //是否默认 0 否 1是
+  private Integer isDefault;
+
+  //创建时间
+  @TableField(fill = FieldFill.INSERT)
+  private LocalDateTime createTime;
+
+  //更新时间
+  @TableField(fill = FieldFill.INSERT_UPDATE)
+  private LocalDateTime updateTime;
+
+  //创建人
+  @TableField(fill = FieldFill.INSERT)
+  private Long createUser;
+
+  //修改人
+  @TableField(fill = FieldFill.INSERT_UPDATE)
+  private Long updateUser;
+
+  //是否删除
+  private Integer isDeleted;
+}
+
+```
+
+<br>
+
+### AddressBookController
+
+**要点:**  
+1. 我们在往数据库保存数据的时候 需要观察哪些字段是必填项, 如果前端没有传递 **我们需要在后台想办法添加**
+
+2. 修改数据表字段的时候 也可以使用 排他思想, 先将数据表的某个字段都修改为默认值 然后再修改其中的一个
+```java
+package com.sam.reggie.controller;
+
+import java.util.List;
+
+@Slf4j
+@RestController
+@RequestMapping("/addressBook")
+public class AddressBookController {
+
+  @Autowired
+  private AddressBookService addressBookService;
+
+  /**
+   * 新增一个地址簿
+   * 请求地址: addressBook
+   * 请求方式: Post
+   * 请求参数:
+   *    consignee: 刘小明
+   *    detail: 天河区
+   *    label: 公司
+   *    phone: 13090909090
+   *    sex: 1
+   */
+  @PostMapping
+  public Result<AddressBook> save(@RequestBody AddressBook addressBook) {
+    // 前端请求参数中并没有 user_id 信息(这个地址是谁的) 所以我们需要手动设置, 从ThreadLocal中取出(用户登录成功后 就可以通过它来获取用户id)
+    addressBook.setUserId(BaseContext.getCurrentId());
+    log.info("addressBook:{}", addressBook);
+    addressBookService.save(addressBook);
+    return Result.success(addressBook);
+  }
+
+  /**
+   * 将某个地址信息 设置默认地址
+   * 请求地址: /default
+   * 请求参数: id:"1641068552637526017"
+   */
+  @PutMapping("default")
+  public Result<AddressBook> setDefault(@RequestBody AddressBook addressBook) {
+    log.info("addressBook:{}", addressBook);
+
+    /*
+      用户可以有多个地址, 但只能有一个是默认地址
+      所以我们的修改逻辑为: 类似js的排他思想, 循环修改为默认值 然后再修改目标值
+        1. 先将该用户(user_id)下所有的地址记录的is_default字段修改为0
+        2. 然后利用形参的 addressBook 的 isDefault 设置为 1
+        3. 保存到数据库
+    */
+    LambdaUpdateWrapper<AddressBook> wrapper = new LambdaUpdateWrapper<>();
+    wrapper.eq(AddressBook::getUserId, BaseContext.getCurrentId());
+    wrapper.set(AddressBook::getIsDefault, 0);
+    //SQL:update address_book set is_default = 0 where user_id = ?
+    addressBookService.update(wrapper);
+
+    addressBook.setIsDefault(1);
+    // 根据地址簿表记录的id 修改该记录的默认地址情况
+    //SQL:update address_book set is_default = 1 where id = ?
+    addressBookService.updateById(addressBook);
+    return Result.success(addressBook);
+  }
+
+  /**
+   * 根据id查询地址
+   */
+  @GetMapping("/{id}")
+  public Result get(@PathVariable Long id) {
+    AddressBook addressBook = addressBookService.getById(id);
+    if (addressBook != null) {
+      return Result.success(addressBook);
+    } else {
+      return Result.error("没有找到该对象");
+    }
+  }
+
+  /**
+   * 查询默认地址
+   */
+  @GetMapping("default")
+  public Result<AddressBook> getDefault() {
+    LambdaQueryWrapper<AddressBook> queryWrapper = new LambdaQueryWrapper<>();
+    queryWrapper.eq(AddressBook::getUserId, BaseContext.getCurrentId());
+    queryWrapper.eq(AddressBook::getIsDefault, 1);
+
+    //SQL:select * from address_book where user_id = ? and is_default = 1
+    AddressBook addressBook = addressBookService.getOne(queryWrapper);
+
+    if (null == addressBook) {
+      return Result.error("没有找到该对象");
+    } else {
+      return Result.success(addressBook);
+    }
+  }
+
+  /**
+   * 查询指定用户的全部地址
+   */
+  @GetMapping("/list")
+  public Result<List<AddressBook>> list(AddressBook addressBook) {
+    addressBook.setUserId(BaseContext.getCurrentId());
+    log.info("addressBook:{}", addressBook);
+
+    //条件构造器
+    LambdaQueryWrapper<AddressBook> queryWrapper = new LambdaQueryWrapper<>();
+    queryWrapper.eq(null != addressBook.getUserId(), AddressBook::getUserId, addressBook.getUserId());
+    queryWrapper.orderByDesc(AddressBook::getUpdateTime);
+
+    //SQL:select * from address_book where user_id = ? order by update_time desc
+    return Result.success(addressBookService.list(queryWrapper));
+  }
+}
+
+```
+
+<br>
+
+# 菜品展示:
+用户登录成功后就会跳转到系统首页, 在首页**需要根据分类(左侧边栏按钮区)** 展示菜品和套餐(右侧内容展示区)
+
+如果菜品设置了口味信息 需要展示 [选择规格] 按钮, 否则显示 [+] 按钮
+
+<br>
+
+## 梳理交互过程
+我们看看移动端首页和后台有哪些交互情况
+
+1. /front/index.html发送ajax请求, 获取分类数据(菜品分类 和 套餐分类)
+```s
+# 该请求已开发完毕
+请求地址: /category/list
+请求方式: get
+```
+
+2. 页面发送ajax请求, 获取左侧菜单栏中的第一个分类下的菜品或者套餐
+```s
+# 该请求已开发完毕
+请求地址: /dish/list?cateforyId=xxx&status=1
+请求方法: get
+```
+
+<br>
+
+**注意:**  
+首页在挂载完成后 使用Promise.all()的方式 发送了两次请求 
+1. /category/list
+2. /shoppingCart/list
+
+一次加载分类 一个加载购物车数据, 购物车接口我们还没有做 因为是Promise.all() 必须两次请求都成功 才会渲染页面 所以我们先修改下 购物车的接口 让它请求一个项目下的json文件
+
+等后续开发购物车功能时 再修改回来
+```js
+// api/main.js
+
+//获取购物车内商品的集合
+function cartListApi(data) {
+  return $axios({
+      // 'url': '/shoppingCart/list',
+      'url': '/frong/cartData.json',
+      'method': 'get',
+      params:{...data}
+  })
+}
+```
+
+<br><br>
+
+## 菜品展示: 套餐分类
+我们点击前端页面左侧的菜单栏 点击 [商务套餐] 分类按钮 会发起请求
+```
+请求地址: setmeal/list?categoryId=1413342269393674242&status=1
+
+请求方式: get
+```
+
+<br>
+
+### 代码部分:
+```java
+// 请求套餐数据的接口
+@GetMapping("/list")
+public Result<List<Setmeal>> list(Setmeal setmeal) {
+
+  Long categoryId = setmeal.getCategoryId();
+  Integer status = setmeal.getStatus();
+
+  LambdaQueryWrapper<Setmeal> setmealLambdaQueryWrapper = new LambdaQueryWrapper<>();
+  setmealLambdaQueryWrapper
+      .eq(Setmeal::getCategoryId, categoryId)
+      .eq(Setmeal::getStatus, status)
+      .orderByDesc(Setmeal::getUpdateTime);
+  List<Setmeal> list = setmealService.list(setmealLambdaQueryWrapper);
+
+  return Result.success(list);
+}
+```
+
+<br><br>
+
+# 购物车:
+移动端用户可以将菜品或者套餐添加到购物车中
+
+**对于菜品来说:**   
+如果设置了口味信息 则需要选择规格后才能加入购物车
+
+<br>
+
+**对于套餐来说:**  
+可以直接点击 [+] 将当前套餐加入购物车
+
+<br>
+
+在购物车中可以修改菜品和套餐的数量 也可以请求购物车
+
+<br><br>
+
+## 数据模型
+购物车在这里项目中是保存在数据库里面的 对应 shopping_cart表
+
+```s
+id: not null
+
+# 购物车中某个菜品或者套餐的名称
+name
+
+# 图片
+image
+
+# 当前用户: 每个人都应该有自己的购物车 当前用户id
+user_id: not null
+
+# 购物车中装了哪一个菜品
+dish_id
+
+# 购物车中装了哪一个套餐
+setmeal_id
+
+# 菜品的口味
+dish_flavor
+
+number: not null
+amount: not null
+```
+
+购物车中多个菜品 就对应多条数据 
+
+<br><br>
+
+## 梳理交互:
+1. 点击 [加入购物车] 或者 [+] 按钮 页面会发起ajax请求, 请求服务器 将菜品或者套餐添加到购物车中
+
+```s
+请求地址: /shoppingCart/add
+请求方式: post
+请求参数: 
+  amount: 168
+  dishFlavor: "常温"
+  dishId: "3132131"
+  image: "xxxx.jpg"
+  name: "口味蛇"
+```
+
+<br>
+
+2. 点击购物车图标, 页面发送ajax请求 请求服务器查询购物车中的菜品或者套餐
+```s
+请求地址: /shoppingCart/list
+请求方式: get
+```
+
+<br>
+
+3. 点击 [清空购物车] 按钮 页面发送ajax请求 请求服务器来执行清空购物车操作
+```s
+请求地址: /shoppingCart/clean
+请求方式: delete
+```
+
+<br>
+
+### 准备工作
+**ShoppingCart:**
+```java
+/**
+ * 购物车
+ */
+@Data
+public class ShoppingCart implements Serializable {
+
+  private static final long serialVersionUID = 1L;
+
+  private Long id;
+
+  //名称
+  private String name;
+
+  //用户id
+  private Long userId;
+
+  //菜品id
+  private Long dishId;
+
+  //套餐id
+  private Long setmealId;
+
+  //口味
+  private String dishFlavor;
+
+  //数量
+  private Integer number;
+
+  //金额
+  private BigDecimal amount;
+
+  //图片
+  private String image;
+
+  private LocalDateTime createTime;
+}
+```
+
+<br><br>
+
+## 总结:
+前端有JSESSIONID, 凭借这个ID我们可以找到服务器端的一块内存存储空间(session)
+
+每个客户端 相当于 key, 存储空间 相当于 value

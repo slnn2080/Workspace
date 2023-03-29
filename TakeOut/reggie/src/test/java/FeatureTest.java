@@ -1,3 +1,4 @@
+import com.sam.reggie.utils.SMSUtils;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.util.AntPathMatcher;
@@ -6,6 +7,12 @@ import java.time.LocalDateTime;
 
 @SpringBootTest(classes = FeatureTest.class)
 public class FeatureTest {
+  @Test
+  public void code() {
+    String code = SMSUtils.generateCode();
+    System.out.println("code = " + code);
+  }
+
   @Test
   public void matcherTest() {
     AntPathMatcher matcher = new AntPathMatcher();

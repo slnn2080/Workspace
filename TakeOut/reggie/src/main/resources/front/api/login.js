@@ -6,6 +6,13 @@ function loginApi(data) {
     })
   }
 
+  function sendMsgApi(phoneNum) {
+    return $axios({
+      url: `/user/sendMsg/${phoneNum}`,
+      method: "get"
+    })
+  }
+
 function loginoutApi() {
   return $axios({
     'url': '/user/loginout',

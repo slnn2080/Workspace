@@ -1,6 +1,7 @@
 package com.sam.reggie.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.StringUtils;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.sam.reggie.common.Result;
@@ -10,6 +11,7 @@ import com.sam.reggie.entity.Setmeal;
 import com.sam.reggie.service.CategoryService;
 import com.sam.reggie.service.SetmealDishService;
 import com.sam.reggie.service.SetmealService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -19,6 +21,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/setmeal")
+@Slf4j
 public class SetmealController {
 
   @Autowired
@@ -81,9 +84,55 @@ public class SetmealController {
     return Result.success(setmealDtoPage);
   }
 
+
   @DeleteMapping
-  public Result<String> delete(Long ids) {
+  /*
+    ids参数 有两种情况
+      - 163999
+      - 163999,163999
+
+    所以我们选择使用 List来承接, Spring会将 163999,163999 转换为 [163999,163999]
+
+    使用 List 接收时 前面要加上 @RequestParam 注解
+  */
+  public Result<String> delete(@RequestParam List<Long> ids) {
+    /*
+      套餐删除逻辑:
+        我们需要删除两张表中的关于套餐的信息, 套餐菜品关系表中的数据也要删掉
+        1. setmeal
+        2. setmeal_dish
+
+      我们扩展自己service方法, 在service层中完成操作两张表的逻辑
+    */
     setmealService.deleteSetmealAndSetmealDish(ids);
-    return Result.success("删除成功");
+    return Result.success("删除套餐成功");
+  }
+
+
+  // 处理 停售 或 启售
+  @PostMapping("/status/{status}")
+  public Result<String> enable(@PathVariable Integer status, @RequestParam List<Long> ids) {
+    LambdaUpdateWrapper<Setmeal> setmealLambdaUpdateWrapper = new LambdaUpdateWrapper<>();
+    setmealLambdaUpdateWrapper
+        .in(Setmeal::getId, ids)
+            .set(Setmeal::getStatus, status);
+
+    setmealService.update(setmealLambdaUpdateWrapper);
+    return Result.success("修改商品在售状态成功");
+  }
+
+
+  // 请求套餐数据的接口
+  @GetMapping("/list")
+  public Result<List<Setmeal>> list(Setmeal setmeal) {
+    Long categoryId = setmeal.getCategoryId();
+    Integer status = setmeal.getStatus();
+    LambdaQueryWrapper<Setmeal> setmealLambdaQueryWrapper = new LambdaQueryWrapper<>();
+    setmealLambdaQueryWrapper
+        .eq(Setmeal::getCategoryId, categoryId)
+        .eq(Setmeal::getStatus, status)
+        .orderByDesc(Setmeal::getUpdateTime);
+    List<Setmeal> list = setmealService.list(setmealLambdaQueryWrapper);
+    return Result.success(list);
   }
 }

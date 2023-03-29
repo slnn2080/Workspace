@@ -224,6 +224,7 @@
           //状态更改
           statusHandle (row) {
             let params = {}
+            // "0" "1"
             if (typeof row === 'string' ) {
               if (this.checkList.length === 0) {
                 this.$message.error('批量操作，请先勾选操作菜品！')

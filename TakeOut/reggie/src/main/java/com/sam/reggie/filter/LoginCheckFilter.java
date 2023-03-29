@@ -39,6 +39,9 @@ public class LoginCheckFilter implements Filter {
         "/employee/logout",
         "/backend/**",
         "/front/**",
+        "/common/**",
+        "/user/sendMsg/*", // 移动端发送短信
+        "/user/login",   // 移动端的登录
         "/dish/**"
     };
     /*
@@ -61,14 +64,26 @@ public class LoginCheckFilter implements Filter {
     if(empId != null) {
       // 用户已登录
 
-      // 将用户id保存到ThreadLoal中
+      // 将当前用户id保存到当前的线程中ThreadLoal中, 便于给交给MyBatis-Plus管理的字段 updateUser 字段赋值使用
       BaseContext.setCurrentId(empId);
       filterChain.doFilter(req, res);
       return;
     }
 
 
-    // 5. 如果未登录则返回未登录结果
+    // 移动端判断用户是否登录
+    Long userId = (Long) req.getSession().getAttribute("user");
+    if(userId != null) {
+      // 用户已登录
+
+      // 将当前用户id保存到当前的线程中ThreadLoal中, 便于给交给MyBatis-Plus管理的字段 updateUser 字段赋值使用
+      BaseContext.setCurrentId(userId);
+      filterChain.doFilter(req, res);
+      return;
+    }
+
+
+    // 5. 如果未登录则返回未登录结果 我们需要向前端页面响应数据, 使用输出流的方式
     /*
       前端的响应拦截器中 会根据code是否为0 和 msg是否为 NOTLOGIN 来判断用户在未登录的情况下需要跳转到登录页(同时会删除本地存储中的userInfo
 
