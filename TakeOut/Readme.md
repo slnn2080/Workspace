@@ -342,7 +342,7 @@ spring:
 
 mybatis-plus:
   configuration:
-    #在映射实体或者属性时，将数据库中表名和字段名中的下划线去掉，按照驼峰命名法映射
+    #在映射实体或者属性时, 将数据库中表名和字段名中的下划线去掉, 按照驼峰命名法映射
     map-underscore-to-camel-case: true
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
   global-config:
@@ -375,7 +375,7 @@ Consider the following:
 
 <br>
 
-查遍了所有可能的原因，最后是因为springboot数据源用了Druid，SpringBoot默认是不支持Druid数据源的，需要手动初始化DruidDataSource对象
+查遍了所有可能的原因, 最后是因为springboot数据源用了Druid, SpringBoot默认是不支持Druid数据源的, 需要手动初始化DruidDataSource对象
 ```java
 @Configuration
 public class DataSourceConfig {
@@ -509,7 +509,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
 <br>
 
-### 服务器处理前台请求后 响应的数据格式：
+### 服务器处理前台请求后 响应的数据格式: 
 我们观察前端代码, 可以观察到 后台返回的数据里面应该有 这样前端才能取出使用
 ```js
 {
@@ -691,7 +691,7 @@ import java.util.Map;
 @Data
 public class R<T> {
 
-  //编码：1成功，0和其它数字为失败
+  //编码: 1成功, 0和其它数字为失败
   private Integer code; 
 
   //错误信息
@@ -933,7 +933,7 @@ date.toLocaleString().replace(/T/g, " ").replace(/\.d{3}Z/, "")
 
 ```java
 public Long toTimestamp(LocalDateTime localDateTime) {
-  // 通过LocalDateTime.atZone方法，使用系统默认时区ZonId.systemDefault()获取Instant实例
+  // 通过LocalDateTime.atZone方法, 使用系统默认时区ZonId.systemDefault()获取Instant实例
   ZonedDateTime zonedDateTime = localDateTime.atZone(ZoneId.systemDefault());
 
   Instant instant = zonedDateTime.toInstant();
@@ -950,26 +950,26 @@ public Long toTimestamp(LocalDateTime localDateTime) {
 
 <br>
 
-注意，这种转换出来的数据，是一个时间戳，具体来说返回来的数据就是1970年到现在查询的时间，距离的毫秒数。如果想要将其转换为年月日，这个时候调用SimpleDateFomat方法，进行日期格式化。
+注意, 这种转换出来的数据, 是一个时间戳, 具体来说返回来的数据就是1970年到现在查询的时间, 距离的毫秒数。如果想要将其转换为年月日, 这个时候调用SimpleDateFomat方法, 进行日期格式化。
 
 <br>
 
 **ChatGPT给出的答案:**  
-这是因为 MyBatis 在将数据库中的 datetime 类型字段映射到 Java 对象时，将其转换为了 Java 中的 java.util.Date 或者 java.time.LocalDateTime 类型。
+这是因为 MyBatis 在将数据库中的 datetime 类型字段映射到 Java 对象时, 将其转换为了 Java 中的 java.util.Date 或者 java.time.LocalDateTime 类型。
 
 而这些 Java 类型的默认格式与数据库中的 datetime 类型的格式不同。
 
 **在 java.util.Date 类型中**  
-日期和时间都被存储在单个 long 类型变量中，表示自 1970 年 1 月 1 日 00:00:00 GMT 以来的毫秒数。
+日期和时间都被存储在单个 long 类型变量中, 表示自 1970 年 1 月 1 日 00:00:00 GMT 以来的毫秒数。
 
 **在 java.time.LocalDateTime 类型中:**  
-则以 ISO 8601 格式表示，即日期和时间之间使用 T 分隔符。
+则以 ISO 8601 格式表示, 即日期和时间之间使用 T 分隔符。
 
 <br>
 
-如果您想在查询结果中使用数据库中的格式，可以在查询语句中使用 DATE_FORMAT 函数将其转换为所需的格式，例如：
+如果您想在查询结果中使用数据库中的格式, 可以在查询语句中使用 DATE_FORMAT 函数将其转换为所需的格式, 例如: 
 
-这将返回一个名为 formatted_datetime 的列，其中包含格式为 yyyy-MM-dd HH:mm:ss 的日期时间字符串。
+这将返回一个名为 formatted_datetime 的列, 其中包含格式为 yyyy-MM-dd HH:mm:ss 的日期时间字符串。
 ```sql
 SELECT DATE_FORMAT(datetime_column, '%Y-%m-%d %H:%i:%s') AS formatted_datetime FROM my_table;
 ```
@@ -977,14 +977,14 @@ SELECT DATE_FORMAT(datetime_column, '%Y-%m-%d %H:%i:%s') AS formatted_datetime F
 <br>
 
 **T的含义:**  
-在 ISO 8601 格式中，字母 "T" **是日期和时间的分隔符**，用于区分日期和时间。
+在 ISO 8601 格式中, 字母 "T" **是日期和时间的分隔符**, 用于区分日期和时间。
 
-这个字母代表着 "time"，因此 ISO 8601 中的日期时间格式可以写成这样：
+这个字母代表着 "time", 因此 ISO 8601 中的日期时间格式可以写成这样: 
 ```
 YYYY-MM-DDThh:mm:ss
 ```
 
-需要注意的是，在不同的编程语言和应用程序中，日期时间格式的表示方式可能会略有不同。有些编程语言和库可能使用其他的分隔符，或者可能会包含更多或更少的时间信息。因此，需要根据具体情况来确定日期时间格式的具体表示方式。
+需要注意的是, 在不同的编程语言和应用程序中, 日期时间格式的表示方式可能会略有不同。有些编程语言和库可能使用其他的分隔符, 或者可能会包含更多或更少的时间信息。因此, 需要根据具体情况来确定日期时间格式的具体表示方式。
 
 <br><br>
 
@@ -1178,7 +1178,7 @@ public class LoginCheckFilter implements Filter {
 ### AntPathMatcher的使用:
 路径在很多地方都会使用到, 比如 文件名 url地址
 
-**Spring** 为 PathMatcher 接口提供了一个默认实现 AntPathMatcher，支持 Ant 风格的路径匹配, 它支持 ``? * **``
+**Spring** 为 PathMatcher 接口提供了一个默认实现 AntPathMatcher, 支持 Ant 风格的路径匹配, 它支持 ``? * **``
 
 <br>
 
@@ -1537,11 +1537,11 @@ public class GlobalExceptionHandler {
 <br>
 
 ### 扩展: SQLIntegrityConstraintViolationException
-SQLIntegrityConstraintViolationException 是一个 Java 异常类，它表示当试图在数据库中插入、更新或删除数据时违反了某些完整性约束条件，例如主键、唯一键或外键限制，导致操作失败的异常。
+SQLIntegrityConstraintViolationException 是一个 Java 异常类, 它表示当试图在数据库中插入、更新或删除数据时违反了某些完整性约束条件, 例如主键、唯一键或外键限制, 导致操作失败的异常。
 
-具体来说，当你尝试在数据库表中插入一条记录，而该记录的某些列值与表中已有记录的某些列值重复时，就会抛出 SQLIntegrityConstraintViolationException 异常。同样地，如果你试图更新或删除表中的某个记录，而这个记录被其他表所引用，或者它是一个主键或唯一键，就会抛出这个异常。
+具体来说, 当你尝试在数据库表中插入一条记录, 而该记录的某些列值与表中已有记录的某些列值重复时, 就会抛出 SQLIntegrityConstraintViolationException 异常。同样地, 如果你试图更新或删除表中的某个记录, 而这个记录被其他表所引用, 或者它是一个主键或唯一键, 就会抛出这个异常。
 
-当你捕获 SQLIntegrityConstraintViolationException 异常时，通常可以从异常消息或根本原因中获取更多信息，例如具体的违反约束的列和值，从而可以进一步调试和修复你的代码逻辑或数据库架构。
+当你捕获 SQLIntegrityConstraintViolationException 异常时, 通常可以从异常消息或根本原因中获取更多信息, 例如具体的违反约束的列和值, 从而可以进一步调试和修复你的代码逻辑或数据库架构。
 
 <br>
 
@@ -1631,7 +1631,7 @@ async init () {
       this.counts = res.data.total
     }
   }).catch(err => {
-    this.$message.error('请求出错了：' + err)
+    this.$message.error('请求出错了: ' + err)
   })
 }
 ```
@@ -1992,7 +1992,7 @@ import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKN
 
 /*
   对象映射器:
-    基于jackson将Java对象转为json，或者将json转为Java对象
+    基于jackson将Java对象转为json, 或者将json转为Java对象
     将JSON解析为Java对象的过程称为 [从JSON反序列化Java对象]
     从Java对象生成JSON的过程称为 [序列化Java对象到JSON]
 */
@@ -2007,7 +2007,7 @@ public class JacksonObjectMapper extends ObjectMapper {
     //收到未知属性时不报异常
     this.configure(FAIL_ON_UNKNOWN_PROPERTIES, false);
 
-    //反序列化时，属性不存在的兼容处理
+    //反序列化时, 属性不存在的兼容处理
     this.getDeserializationConfig().withoutFeatures(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
 
 
@@ -2024,7 +2024,7 @@ public class JacksonObjectMapper extends ObjectMapper {
         .addSerializer(LocalDate.class, new LocalDateSerializer(DateTimeFormatter.ofPattern(DEFAULT_DATE_FORMAT)))
         .addSerializer(LocalTime.class, new LocalTimeSerializer(DateTimeFormatter.ofPattern(DEFAULT_TIME_FORMAT)));
 
-    //注册功能模块 例如，可以添加自定义序列化器和反序列化器
+    //注册功能模块 例如, 可以添加自定义序列化器和反序列化器
     this.registerModule(simpleModule);
   }
 }
@@ -3415,7 +3415,7 @@ SpringBoot中我们可以直接在控制器方法中声明参数即可
 
 ### @RequestPart 注解
 用于处理multipart/form-data类型的请求。通常用于上传文件等场景。
-@RequestPart注解还支持更广泛的类型，包括JSON和XML。
+@RequestPart注解还支持更广泛的类型, 包括JSON和XML。
 
 - @RequestParam注解: 用于从请求参数中获取单个值
 - @RequestPart注解: 用于从multipart/form-data类型的请求中获取一个或多个部分。
@@ -3430,24 +3430,24 @@ public void uploadFile(@RequestPart("file") MultipartFile file, @RequestPart("me
 <br>
 
 **与@Multipart注解相比**  
-@RequestPart注解更加灵活，可以处理更多类型的请求。
+@RequestPart注解更加灵活, 可以处理更多类型的请求。
 
-@Multipart注解只能处理multipart/form-data类型的请求，而@RequestPart注解可以处理更多类型的请求，包括JSON和XML。
+@Multipart注解只能处理multipart/form-data类型的请求, 而@RequestPart注解可以处理更多类型的请求, 包括JSON和XML。
 
-另外，@Multipart注解不支持多部分请求，而@RequestPart注解可以处理多个部分。
+另外, @Multipart注解不支持多部分请求, 而@RequestPart注解可以处理多个部分。
 
 <br>
 
 **注意:**  
-在使用@RequestPart注解时，如果您指定了一个部分的名称，那么Spring Boot将会尝试从multipart/form-data类型的请求中获取这个指定的部分数据，如果请求中不包含该部分，则会抛出异常。
+在使用@RequestPart注解时, 如果您指定了一个部分的名称, 那么Spring Boot将会尝试从multipart/form-data类型的请求中获取这个指定的部分数据, 如果请求中不包含该部分, 则会抛出异常。
 
-@RequestPart注解中指定了"file"作为参数名，表示我们要获取请求中名为"file"的文件部分数据。如果请求中不包含名为"file"的文件部分数据，则会抛出异常。
+@RequestPart注解中指定了"file"作为参数名, 表示我们要获取请求中名为"file"的文件部分数据。如果请求中不包含名为"file"的文件部分数据, 则会抛出异常。
 
 <br>
 
-此外，当使用@RequestPart注解处理文件上传时，必须确保请求中包含文件部分，否则将抛出异常。
+此外, 当使用@RequestPart注解处理文件上传时, 必须确保请求中包含文件部分, 否则将抛出异常。
 
-个异常通常是MissingServletRequestPartException类型的异常，它会告诉您请求中缺少了指定的部分。因此，在使用@RequestPart注解时，一定要确保请求中包含了指定的部分数据，否则您的代码将无法正常工作。
+个异常通常是MissingServletRequestPartException类型的异常, 它会告诉您请求中缺少了指定的部分。因此, 在使用@RequestPart注解时, 一定要确保请求中包含了指定的部分数据, 否则您的代码将无法正常工作。
 
 <br>
 
@@ -3771,7 +3771,7 @@ public class DishFlavor implements Serializable {
 新建菜品页面在一加载的时候就会发起请求
 ```js
 getDishList () {
-  // api方法：
+  // api方法: 
   getCategoryList({ 'type': 1 }).then(res => {
     if (res.code === 1) {
       this.dishList = res.data
@@ -5487,7 +5487,7 @@ public class User implements Serializable {
   //头像
   private String avatar;
 
-  //状态 0:禁用，1:正常
+  //状态 0:禁用, 1:正常
   private Integer status;
 }
 
@@ -5516,12 +5516,12 @@ public class ValidateCodeUtils {
   public static Integer generateValidateCode(int length){
       Integer code =null;
       if(length == 4){
-          code = new Random().nextInt(9999);//生成随机数，最大为9999
+          code = new Random().nextInt(9999);//生成随机数, 最大为9999
           if(code < 1000){
               code = code + 1000;//保证随机数为4位数字
           }
       }else if(length == 6){
-          code = new Random().nextInt(999999);//生成随机数，最大为999999
+          code = new Random().nextInt(999999);//生成随机数, 最大为999999
           if(code < 100000){
               code = code + 100000;//保证随机数为6位数字
           }
@@ -6279,7 +6279,686 @@ public class ShoppingCart implements Serializable {
 
 <br><br>
 
-## 总结:
+## 购物车: 加入购物车
+我们点击一个菜品后 随后点击 [加入购物车] 按钮, 将该菜品加入到购物车
+
+当我们点击 [加入购物车] 按钮后, 会发送如下的请求
+- 请求地址: /shoppingCart/add
+- 请求方式: Post
+- 请求参数: 这些参数都可以用ShoppingCart实体类来承装
+  - amount 
+  - disfFlavor
+  - image
+  - name
+
+<br>
+
+### 要点:
+1. 该控制器方法的返回值 需要根据前端页面的使用数据的情况 我们再决定返回什么类型的数据 我们定义为 ``Result<ShoppingCart>``
+
+2. 形参定义为 ``@RequestBody ShoppingCart shoppingCart`` 用于接收前端页面的请求参数
+
+3. 购物车中只需要记入点了几份菜 和 单份菜的价格, 计算总价的工作是生成订单时完成
+
+4. 我们将数据添加到数据库的逻辑之前 要观察下哪些字段是必传项, 如果前端没有传递必传项对应的值 那么该值需要在java端设置
+
+5. 我们每点击一次 [加入购物车] 按钮 就对应一次将数据加入购物车表的请求 
+
+<br>
+
+### 逻辑:
+1. 设置用户id, 前端没有传递 我们需要手动从session或ThreadLocal中获取 设置
+2. 如果同一个菜品 两次添加到购物车 我们将该菜品的number属性修改为2
+3. 每次将该菜品添加到购物车里的时候 都要查询一次购物车表, 看看该菜品或套餐能查询到
+  - 如果能查询到 则说明购物车中已存在该菜品 则它的number应该加1
+  - 如果查询不到 则说明购物车中没有该菜品 则我们应该将该菜品添加到购物车表中
+
+<br>
+
+### 代码:
+```java
+/*
+  控制器方法
+    返回值定义为 ShoppingCart (前端页面要使用数据)
+    形参定义为 ShoppingCart (用于接收前端页面的请求参数)
+
+  添加购物车逻辑:
+    1. 设置用户id: 我们观察下 购物车表 中的必传字段, 发现 userId 字段是必传项 但是前端的请求参数中 并没有该项 所以 userId 需要手动设置, 不然购物车中的数据都不知道谁点的
+
+    2. 如果同一个菜品 两次添加到购物车 我们将该菜品的number属性修改为2
+      - 查询下当前添加进来的菜品或套餐 有没有在购物车中
+      - 如果已经存在 我们在number的基础上 + 1
+      - 如果没有存在 则添加到购物车中 数量默认就是1
+*/
+@PostMapping("/add")
+public Result<ShoppingCart> add(@RequestBody ShoppingCart shoppingCart) {
+
+  // 1. 设置用户id 指定当前是哪个用户的购物车数据(ThreadLocal 或者 session获取都可以)
+  Long userId = BaseContext.getCurrentId();
+  shoppingCart.setUserId(userId);
+
+  LambdaQueryWrapper<ShoppingCart> shoppingCartLambdaQueryWrapper = new LambdaQueryWrapper<>();
+
+  // 设置通用的查询条件: userId
+  shoppingCartLambdaQueryWrapper
+      .eq(ShoppingCart::getUserId, userId);
+
+  // 查询当前 菜品 或者 套餐 是否在购物车中, 动态拼接 特有 条件
+  Long dishId = shoppingCart.getDishId();
+  if(dishId != null) {
+    // 添加到购物车的是菜品, 查询条件 userId + dishId
+    shoppingCartLambdaQueryWrapper
+        .eq(ShoppingCart::getDishId, dishId);
+
+  } else {
+    // 添加购物车的是套餐, 查询条件 userId + setmealId
+    shoppingCartLambdaQueryWrapper
+        .eq(ShoppingCart::getDishId, shoppingCart.getSetmealId());
+  }
+
+
+  // 统一查询: select * from shopping_cart where user_id = ? and dish_id/setmeal_id = ?
+  ShoppingCart cart = shoppingCartService.getOne(shoppingCartLambdaQueryWrapper);
+
+
+  // 如果能查询到 cart 则说明当前的菜品或套餐已经存在于购物车 则number加1
+  if(cart != null) {
+    cart.setNumber(cart.getNumber() + 1);
+    // 更新操作: 该菜品或套餐的number
+    shoppingCartService.updateById(cart);
+  } else {
+    // 添加操作: 如果不存在则将 形参封装的shoppingCart对象添加到数据表中, number第一次进库默认为1
+    shoppingCart.setNumber(1);
+    shoppingCartService.save(shoppingCart);
+
+    // 当我们将shoppingCart保存到数据库后, shoppingCart对象的id就是添加到数据后的值 作用域原因我们进行如下操作后 统一返回 cart 对象, 因为进入else后 cart 肯定是空
+    cart = shoppingCart;
+  }
+
+  return Result.success(cart);
+}
+```
+
+<br><br>
+
+## 购物车: 查看购物车
+用于展示购物车中有哪些菜品或者套餐
+
+<br>
+
+### 要点:
+**不同的用户 看见的购物车是不同的**, 每个人只能看到自己的购物车信息
+
+我们查询的时候 就要通过 user_id 来查询 这样我们拿到的就是该用户的数据
+
+<br>
+
+### 代码:
+后加入的菜品 优先展示 所以查询条件中 我们可以加入排序条件 **根据创建时间**
+
+```java
+@GetMapping("/list")
+public Result<List<ShoppingCart>> list() {
+
+  // 获取 user_id
+  Long id = BaseContext.getCurrentId();
+  LambdaQueryWrapper<ShoppingCart> shoppingCartLambdaQueryWrapper = new LambdaQueryWrapper<>();
+
+  // 最后加入的菜品最先展示 createTime
+  shoppingCartLambdaQueryWrapper
+    .eq(ShoppingCart::getUserId, id)
+    .orderByAsc(ShoppingCart::getCreateTime);
+
+  // 查询属于 user_id 的菜品 或 套餐列表
+  List<ShoppingCart> list = shoppingCartService.list(shoppingCartLambdaQueryWrapper);
+
+  return Result.success(list);
+}
+```
+
+<br><br>
+
+## 购物车: 清空购物车
+将当前用户对应的购物车表中的数据删掉
+
+**注意:**  
+删除不能使用 removeById 它是根据id主键来删除 而我们需要根据 userId 来删除 所以要构建 Wrapper
+
+```java
+@DeleteMapping("/clean")
+public Result<String> clean() {
+  Long userId = BaseContext.getCurrentId();
+
+  LambdaQueryWrapper<ShoppingCart> shoppingCartLambdaQueryWrapper = new LambdaQueryWrapper<>();
+
+  shoppingCartLambdaQueryWrapper.eq(ShoppingCart::getUserId, userId);
+  shoppingCartService.remove(shoppingCartLambdaQueryWrapper);
+
+  return Result.success("清空成功");
+}
+```
+
+<br><br>
+
+# 用户下单
+
+## 需求分析
+移动端用户将菜品或者套餐加入购物车后 可以点击购物车中的 [去结算] 按钮, 页面跳转到订单确认页面 
+
+在订单确认页面上 点击 [去支付] 完成下单的操作
+
+<br>
+
+这个demo中没有开发支付功能 只是将订单保存到了数据库, 因为开发支付功能的话 是需要有对应的资质的
+
+比如系统提供的是支付宝支付或者是微信支付 那么我们就需要申请相对应的账号
+
+这些账号对于我们个人用户来说是无法开通支付功能的
+
+<br><br>
+
+## 数据模型:
+用户下单业务对应的数据表为orders和order_detail
+- orders: 订单表
+- order_detail: 订单明细表
+
+<br>
+
+### 订单表
+订单表 没有买的什么套餐 什么菜品 只是订单本身的信息
+- 哪个用户下的单
+- 一共多少钱
+- 用户的手机号是多少
+- 用户住在哪
+
+```s
+- id  * 
+
+# 订单号
+- number
+
+# 订单的状态
+- status  * 
+
+# 用户id 当前的订单是哪个用户的订单
+- user_id  * 
+
+# 地址id, 给用户派送的地址的id
+- address_book_id  * 
+
+# 下单时间
+- order_time  * 
+
+# 支付完成的时间
+- checkout_time  * 
+
+# 支付方式
+- pay_method  * 
+
+# 订单金额
+- amount  * 
+
+# 备注信息
+- remark
+- phone
+
+# 地址信息 详细的地址信息文字版
+- address
+
+# 用户名
+- user_name
+
+# 收货人的名字
+- consignee
+```
+
+<br>
+
+### 订单明细表
+用户具体买的什么套餐 什么菜品 体现在订单明细表中
+
+```s
+- id  *
+
+# 菜品 或 套餐 名字
+- name
+- image
+
+# 订单的id
+- order_id  *
+- dish_id
+- setmeal_id
+- dish_flavor
+
+# 数量
+- number  *
+
+# 金额
+- amount  *
+```
+
+<br><br>
+
+## 梳理交互流程
+1. 在购物车中点击 [去结算] 按钮, 页面跳转到 订单确认页面
+
+2. 在 订单确认页面 发送ajax请求 请求服务器获取当前登录用户的默认地址
+```s
+请求地址: /addressBook/default
+请求方式: get
+```
+
+3. 在 订单确认页面 发送ajax请求 请求服务其获取当前登录用户的购物车数据
+```s
+请求地址: /shoppingCart/list
+请求方式: get
+```
+
+4. 在 订单确认页面点击 [去支付] 按钮, 发送ajax请求 请求服务器完成下单操作
+```s
+请求地址: /order/submit
+请求方式: post
+请求参数: 
+  - addressBookId
+  - payMethod
+  - remark
+```
+
+<br><br>
+
+## 准备工作
+
+### 实体类
+**Orders:**  
+```java
+package com.sam.reggie.entity;
+
+import lombok.Data;
+import java.io.Serializable;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+/**
+ * 订单
+ */
+@Data
+public class Orders implements Serializable {
+
+  private static final long serialVersionUID = 1L;
+
+  private Long id;
+
+  //订单号
+  private String number;
+
+  //订单状态 1待付款, 2待派送, 3已派送, 4已完成, 5已取消
+  private Integer status;
+
+
+  //下单用户id
+  private Long userId;
+
+  //地址id
+  private Long addressBookId;
+
+
+  //下单时间
+  private LocalDateTime orderTime;
+
+
+  //结账时间
+  private LocalDateTime checkoutTime;
+
+
+  //支付方式 1微信, 2支付宝
+  private Integer payMethod;
+
+
+  //实收金额
+  private BigDecimal amount;
+
+  //备注
+  private String remark;
+
+  //用户名
+  private String userName;
+
+  //手机号
+  private String phone;
+
+  //地址
+  private String address;
+
+  //收货人
+  private String consignee;
+}
+```
+
+<br>
+
+**OrderDetail:**  
+```java
+package com.sam.reggie.entity;
+
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import lombok.Data;
+import java.io.Serializable;
+import java.math.BigDecimal;
+
+/**
+ * 订单明细
+ */
+@Data
+public class OrderDetail implements Serializable {
+
+  private static final long serialVersionUID = 1L;
+
+  private Long id;
+
+  //名称
+  private String name;
+
+  //订单id
+  private Long orderId;
+
+  //菜品id
+  private Long dishId;
+
+  //套餐id
+  private Long setmealId;
+
+  //口味
+  private String dishFlavor;
+
+  //数量
+  private Integer number;
+
+  //金额
+  private BigDecimal amount;
+
+  //图片
+  private String image;
+}
+```
+
+<br><br>
+
+## 订单功能: [去支付] 接口
+我们点击 [去支付] 前端Demo提交的参数有
+- addressBookId
+- payMethod
+- remark
+
+还有其他的数据 并没有提交到后台
+- 购物车中的菜品数据
+- 当前登录用户的id
+
+之所以不用提交的原因是因为 **当前的用户已经完成了登录**, 我们可以随时从session中 获取到当前用户 
+
+然后拿着当前用户id查询数据库, 获取到当前用户的购物车中的数据
+
+<br>
+
+### 逻辑:
+该逻辑比较复杂我们扩展自己的service层来处理
+
+**完成下单:**  
+本质就是向如下的两张表中插入数据
+- 订单表
+- 订单详情表
+
+<br>
+
+1. 获取当前的用户id
+
+2. 根据用户id查询购物车表 查询当前用户的购物车数据
+
+3. 向订单表插入一条数据(不管我们买了多少菜品)
+
+4. 向订单明细表插入数据, 有可能是多条数据 (我们买了几个菜品 就插入几条数据)
+
+5. 下单完成后 清空购物车数据
+
+<br>
+
+### 要点:
+1. 因为操作了多张表 我们要加入事务控制
+
+2. 订单号 我们可以通过 ``IdWork.getId()`` 生成一串id 该方式是MyBatisPlus中提供的方法
+
+<br>
+
+### 扩展: AtomicInteger的使用
+Java的AtomicInteger是一个原子操作类, 它提供了一种原子操作的方式来更新整型变量。
+
+**它的作用是在多线程环境下, 保证对整型变量的修改操作是线程安全的, 即多线程并发修改一个整型变量时, 不会出现数据不一致或者错误的情况。**
+
+
+<br>
+
+使用方式如下: 
+
+**创建AtomicInteger对象: **
+```java
+AtomicInteger atomicInteger = new AtomicInteger();
+```
+
+<br>
+
+**Api:**  
+- int get(): 获取当前的值
+- void set(int newValue): 设置新值
+- int getAndSet(int newValue): 获取当前值, 并设置新值
+- int getAndIncrement(): 获取当前值, 并加1
+- int getAndDecrement(): 获取当前值, 并减1
+- int getAndAdd(int delta): 获取当前值, 并加上指定的值 +=
+- boolean compareAndSet(int expect, int update): 如果当前值等于expect, 则将其设置为update, 返回true, 否则返回false
+
+<br>
+
+**示例:**   
+上面代码中, 我们创建了一个初始值为0的AtomicInteger对象, 然后对其进行了一系列操作。通过get()方法可以获取当前值, 通过set()方法可以设置新值, 通过getAndSet()方法可以获取当前值并设置新值, 通过getAndIncrement()方法可以获取当前值并加1, 通过compareAndSet()方法可以原子性地更新值
+
+```java
+AtomicInteger atomicInteger = new AtomicInteger(0);
+int currentValue = atomicInteger.get();
+atomicInteger.set(5);
+int previousValue = atomicInteger.getAndSet(10);
+int newValue = atomicInteger.getAndIncrement();
+boolean updated = atomicInteger.compareAndSet(11, 20);
+int updatedValue = atomicInteger.get();
+```
+
+
+<br>
+
+### 代码部分:
+```java
+// 控制层
+@RestController
+@RequestMapping("/order")
+public class OrdersController {
+
+  @Autowired
+  private OrdersService ordersService;
+
+  @PostMapping("submit")
+  public Result<String> submit(@RequestBody Orders orders) {
+    ordersService.submit(orders);
+    return Result.success("下单成功");
+  }
+}
+
+
+
+// 业务层
+package com.sam.reggie.service.impl;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.IdWorker;
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.sam.reggie.common.BaseContext;
+import com.sam.reggie.common.CustomException;
+import com.sam.reggie.entity.*;
+import com.sam.reggie.mapper.OrdersMapper;
+import com.sam.reggie.service.*;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
+
+@Service
+public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> implements OrdersService {
+
+  @Autowired
+  private ShoppingCartService shoppingCartService;
+  @Autowired
+  private UserService userService;
+  @Autowired
+  private AddressBookService addressBookService;
+  @Autowired
+  private OrderDetailService orderDetailService;
+
+  @Override
+  @Transactional
+  public void submit(Orders orders) {
+    // 1. 获取当前的用户id
+    Long userId = BaseContext.getCurrentId();
+
+    // 2. 根据用户id查询购物车表 查询当前用户的购物车数据
+    LambdaQueryWrapper<ShoppingCart> shoppingCartLambdaQueryWrapper = new LambdaQueryWrapper<>();
+    shoppingCartLambdaQueryWrapper.eq(ShoppingCart::getUserId, userId);
+    // 获取购物车中的数据 是一个集合
+    List<ShoppingCart> shoppingCarts = shoppingCartService.list(shoppingCartLambdaQueryWrapper);
+
+    // 如果购物车为空 可以不用下单了
+    if(shoppingCarts == null || shoppingCarts.size() == 0) {
+      throw new CustomException("购物车为空 不能下单");
+    }
+
+    // 3. 向订单表插入一条数据(不管我们买了多少菜品)
+    /*
+      订单表 非空字段
+      - status
+      - user_id
+      - address_book_id
+      - order_time
+      - checkout_time
+      - pay_method
+      - amount
+
+      根据用户id
+        查询用户表 获取用户信息 订单表中需要
+        查询地址簿 获取用户地址信息
+    */
+
+    // 查询用户数据
+    User user = userService.getById(userId);
+
+    // 查询地址数据, 根据前端发送的 addressBookId 查询
+    AddressBook addressBook = addressBookService.getById(orders.getAddressBookId());
+
+    // 判断
+    if(addressBook == null) {
+      throw new CustomException("地址信息有误 不能下单");
+    }
+
+    // 装配orders对象
+    // 设置用户id
+    orders.setUserId(userId);
+    // 生成订单号
+    long orderNumber = IdWorker.getId();
+    orders.setNumber(String.valueOf(orderNumber));
+
+    // 设置订单id 我们也可以使用订单号
+    orders.setId(orderNumber);
+
+    // 设置下单订单时间
+    orders.setOrderTime(LocalDateTime.now());
+
+    // 设置结账时间
+    orders.setCheckoutTime(LocalDateTime.now());
+
+    // 设置订单状态 1待付款, 2待派送, 3已派送, 4已完成, 5已取消
+    orders.setStatus(2);
+
+    // 设置订单的总金额: 我们需要将订单明细中的一条条数据的金额汇总 自己计算
+    // 使用AtomicInteger 将菜品和套餐的价格累加到amount变量上, 它可以保证在多线程的情况下 计算也不会出现问题, 如果我们使用的是普通的int 在高并发的情况下就会出现计算错误的情况
+    AtomicInteger amount = new AtomicInteger(0);
+    // 遍历购物车中的数据(同时也在封装订单明细表中需要的数据)
+    List<OrderDetail> orderDetails = shoppingCarts.stream().map(item -> {
+      // 创建 OrderDetail 对象
+      OrderDetail orderDetail = new OrderDetail();
+      orderDetail.setOrderId(orderNumber);
+      // 设置菜品的数量
+      orderDetail.setNumber(item.getNumber());
+      orderDetail.setDishFlavor(item.getDishFlavor());
+      orderDetail.setDishId(item.getDishId());
+      orderDetail.setSetmealId(item.getSetmealId());
+      orderDetail.setName(item.getName());
+      orderDetail.setImage(item.getImage());
+      orderDetail.setAmount(item.getAmount());
+
+      // 使用AtomicInteger对象来计算金额 addAndGet相当于+=
+      amount.addAndGet(item.getAmount().multiply(new BigDecimal(item.getNumber())).intValue());
+
+      return orderDetail;
+    }).collect(Collectors.toList());
+
+    // 设置总金额
+    orders.setAmount(new BigDecimal(amount.get()));
+
+    // 设置用户名
+    orders.setUserName(user.getName());
+
+    // 设置收货人
+    orders.setConsignee(addressBook.getConsignee());
+
+    // 设置收货人电话
+    orders.setPhone(addressBook.getPhone());
+
+    // 添加地址
+    orders.setAddress(
+        (addressBook.getProvinceName() == null ? "" : addressBook.getProvinceName()) +
+        (addressBook.getCityName() == null ? "" : addressBook.getCityName()) +
+        (addressBook.getDistrictName() == null ? "" : addressBook.getDistrictName()) +
+        (addressBook.getDetail() == null ? "" : addressBook.getDetail())
+    );
+
+    // 保存订单
+    this.save(orders);
+
+
+    // 4. 向订单明细表插入数据, 有可能是多条数据 (我们买了几个菜品 就插入几条数据)
+    /*
+      订单明细表 非空字段
+      - order_id
+      - number
+      - amount
+    */
+    // 批量插入
+    orderDetailService.saveBatch(orderDetails);
+
+    // 5. 下单完成后 清空购物车数据
+    // shoppingCartLambdaQueryWrapper 上面已经封装上 userId 了 直接使用就可以
+    shoppingCartService.remove(shoppingCartLambdaQueryWrapper);
+  }
+}
+
+```
+
+<br><br>
+
+## Session相关总结:
 前端有JSESSIONID, 凭借这个ID我们可以找到服务器端的一块内存存储空间(session)
 
 每个客户端 相当于 key, 存储空间 相当于 value
+
+<br><br>
+
