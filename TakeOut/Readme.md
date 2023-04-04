@@ -6962,3 +6962,196 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
 
 <br><br>
 
+# 项目部署:
+我们会将项目 部署到 Linux 服务器上
+
+至于Linux怎么下载安装, 和Linux上如何安装jdk tomcat mysql等 在Linux.md中的最后有讲解
+
+但是msyql5和8的方式还是有一定的区别 如果我们要自己尝试的话 还是要百度 老师的方式因为版本原因可能不适用
+
+<br><br>
+
+## 手工部署项目
+我们自己对项目打包(比如打jar包) 然后上传到Linux系统, 自己通过命令将项目运行起来
+
+<br>
+
+### 步骤:
+1. 在idea中开发项目 并将其打成jar包 (Maven面板 点击 package, 在target目录下)
+```
+发现一个问题:
+我一直以为前后台项目要打成war包
+
+但现在看打成jar包也可以哦
+```
+
+<br>
+
+2. 将打好的包上传到Linux, 使用rz (一个上传工具) 上传到 app目录下
+```s
+# Linux下创建一个目录
+mkdir /usr/local/app
+```
+
+<br>
+
+3. 通过 ``java -jar jar包名称`` 启动springboot程序 (前提是完成jdk的安装)
+
+<br>
+
+4. 确保项目的端口号是否在Linux中是开放的
+```
+firewall -cmd --zone=public --list-ports
+```
+
+<br>
+
+5. 将springboot修改为后台启动(不占用终端), 并将日志输出到日志文件  
+
+<br>
+
+**目前程序运行的问题:**  
+1. 线上程序不会采用控制台霸屏的形式运行程序, 而是将程序放在后台运行
+2. 线上程序不会将日志输出到控制台, 而是输出到日志文件, 方便运维查询信息
+
+<br>
+
+**nohup命令:**  
+上述命令全称, no hang up(不挂起), 用于不挂断地运行指定命令 退出终端不会影响程序的运行
+
+格式:
+```s
+nohup <要执行的命令> [arg ...] [&]
+```
+
+<br>
+
+**参数:**  
+- arg: 一些参数 可以指定输出文件
+- &: 让命令在后台运行
+
+<br>
+
+**举例:**
+```s
+# 后台运行java -jar命令 并将日志输出到 hellp.log 文件
+
+# hello.log 这种写法是相对路径 意味着会在当前目录下生成hello.log文件
+nohup java -jar boot工程.jar &> hello.log &
+
+
+# &> 的说明: https://blog.csdn.net/itworld123/article/details/125735000
+```
+
+<br>
+
+**停止后台运行的服务:**  
+通过杀进程的方式 停止
+```s
+# 搜索 刚才启动的springboot项目
+ps -ef | java -jar
+
+kill -9 id
+```
+
+<br><br>
+
+## 通过shell脚本自动部署项目
+从git上自己拉取代码 自动进行编译 自动打包
+
+<br>
+
+### 操作步骤:
+这个部分可以结合 Linux.md 来一起复习, git maven的下载和配置都写在这个 md 文档里面了
+
+<br>
+
+1. 在Linux中安装Git, 并在Linux上克隆github上的项目(我们本地开发的项目会push到仓库中)
+
+2. 在Linux中安装Maven
+
+3. 编写shell脚本 (拉取代码, 编译, 打包, 启动)
+```s
+# 创建一个存放 shell 脚本的位置
+pwd
+# /usr/local/
+
+mkdir sh
+
+cd sh
+
+# 创建 sh文件
+vim bootStart.sh
+
+# 这里使用的是 老师提供的 shell 脚本 <bootStart.sh>, 我们将shell脚本复制到 linux的目录中, 脚本内容我存放在 reggie 资料文件夹中了
+``` 
+
+4. 为用户授予执行shell脚本的权限 (``chmod 777 bootStart.sh``)  
+默认编写的脚本是不能执行的 因为没有权限, linux是一个多用户的系统 我们当前使用的是root用户 它的权限高, 一般在企业中我们只是一个普通用户 因为我们的权限是有限的 这时我们执行shell脚本是执行不了的
+
+5. 执行shell脚本
+```
+./bootStart.sh
+```
+
+```
+Linux服务器 (编译, 打包, 启动)  <-  Git仓库
+
+                                    ↑ push
+
+                                本地开发环境
+```
+
+<br>
+
+### shell脚本
+它是在linux下运行的一段脚本, 它可以由linux解释运行(就像java脚本是由java虚拟机解释运行一样)
+
+```shell
+#!/bin/sh
+echo =================================
+echo 自动化部署脚本启动
+echo =================================
+
+echo 停止原来运行中的工程
+APP_NAME=helloworld
+
+tpid=`ps -ef|grep $APP_NAME|grep -v grep|grep -v kill|awk '{print $2}'`
+if [ ${tpid} ]; then
+    echo 'Stop Process...'
+    kill -15 $tpid
+fi
+sleep 2
+tpid=`ps -ef|grep $APP_NAME|grep -v grep|grep -v kill|awk '{print $2}'`
+if [ ${tpid} ]; then
+    echo 'Kill Process!'
+    kill -9 $tpid
+else
+    echo 'Stop Success!'
+fi
+
+echo 准备从Git仓库拉取最新的代码
+cd /usr/local/helloworld
+
+echo 开始从Git仓库拉取最新的代码
+git pull
+echo 代码拉取完成
+
+echo 开始打包
+output=`mvn clean package -Dmaven.test.skip=true`
+
+cd target
+
+echo 启动项目
+nohup java -jar helloworld-1.0-SNAPSHOT.jar &> helloworld.log &
+echo 项目启动完成
+```
+
+<br>
+
+### 
+
+<br>
+
+
+
