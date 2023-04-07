@@ -1,12 +1,26 @@
+package com.sam.reggie.common;
+
 import com.sam.reggie.utils.SMSUtils;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.util.AntPathMatcher;
 
 import java.time.LocalDateTime;
 
-@SpringBootTest(classes = FeatureTest.class)
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
+
+@SpringBootTest
 public class FeatureTest {
+
+  @Autowired
+  private RedisTemplate redisTemplate;
+
   @Test
   public void code() {
     String code = SMSUtils.generateCode();
@@ -20,7 +34,7 @@ public class FeatureTest {
     boolean match = matcher.match(url, "/backend/index.html");
     System.out.println("match = " + match);
   }
-  
+
   @Test
   public void localDateTimeTest() {
     LocalDateTime now = LocalDateTime.now();
@@ -47,4 +61,15 @@ public class FeatureTest {
         System.out.println("天蝎");
     }
   }
+
+  @Test
+  public void testRedis() {
+
+    ValueOperations valueOperations = redisTemplate.opsForValue();
+    valueOperations.set("java-redis", "java");
+    String name = (String) valueOperations.get("java-redis");
+    System.out.println("name = " + name);
+  }
+
 }
+

@@ -8,16 +8,21 @@ import com.sam.reggie.service.UserService;
 import com.sam.reggie.utils.SMSUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 @RestController
 @Slf4j
 @RequestMapping("user")
 public class UserController {
+
+  @Autowired
+  private RedisTemplate redisTemplate;
 
   @Autowired
   private UserService userService;
@@ -38,8 +43,10 @@ public class UserController {
       // SMSUtils.sendMessage("瑞吉外卖", "SMS-101012", phone, code)
 
       // 将验证码保存到session, 用于一会校验前端输入的验证码是否正确, 手机号作为key
-      req.getSession().setAttribute(phone, code);
+      // req.getSession().setAttribute(phone, code);
 
+      // 将手机验证码保存到Redis中, 并且设置有效期为5分钟
+      redisTemplate.opsForValue().set(phone, code, 5L, TimeUnit.MINUTES);
       return Result.success(code);
     }
 
@@ -60,10 +67,14 @@ public class UserController {
     String code = map.get("code").toString();
 
     // 根据手机号获取session中的验证码
-    String codeInSession = (String) session.getAttribute(phone);
+    // String codeInSession = (String) session.getAttribute(phone);
+
+    // 从Redis中获取我们缓存的验证码
+    String codeInRedis = (String) redisTemplate.opsForValue().get(phone);
+
 
     // 进行验证码的比对
-    if(codeInSession != null && codeInSession.equals(code)) {
+    if(codeInRedis != null && codeInRedis.equals(code)) {
       // 如果验证码比对成功 则说明登录成功, 判断当前手机号是否是新用户
       LambdaQueryWrapper<User> userLambdaQueryWrapper = new LambdaQueryWrapper<>();
       userLambdaQueryWrapper.eq(User::getPhone, phone);
@@ -78,6 +89,9 @@ public class UserController {
 
       // 登录成功后将用户的id放到session中 过滤器中会校验
       session.setAttribute("user", user.getId());
+
+      // 如果用户登录成功则删除redis中缓存的验证码
+      redisTemplate.delete(phone);
 
       return Result.success(user);
     }

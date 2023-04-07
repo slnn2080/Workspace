@@ -14,6 +14,8 @@ import com.sam.reggie.service.SetmealService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -36,6 +38,8 @@ public class SetmealController {
 
   // 处理 保存添加的套餐信息
   @PostMapping
+  // 全部删除
+  @CacheEvict(value = "setmealCache", allEntries = true)
   // 接收前端请求参数的形参 不能是 Setmeal实体类 因为还有一个setmealDishes属性并不在Setmeal实体类中 我们要使用SetmealDto
   public Result<String> save(@RequestBody SetmealDto setmealDto) {
 
@@ -47,6 +51,8 @@ public class SetmealController {
     setmealService.saveSetmealAndSetmealDish(setmealDto);
     return Result.success("添加套餐成功");
   }
+
+
 
   @GetMapping("/page")
   public Result<Page> page(Integer page, Integer pageSize, String name) {
@@ -85,7 +91,9 @@ public class SetmealController {
   }
 
 
+
   @DeleteMapping
+  @CacheEvict(value = "setmealCache", allEntries = true)
   /*
     ids参数 有两种情况
       - 163999
@@ -109,6 +117,7 @@ public class SetmealController {
   }
 
 
+
   // 处理 停售 或 启售
   @PostMapping("/status/{status}")
   public Result<String> enable(@PathVariable Integer status, @RequestParam List<Long> ids) {
@@ -122,8 +131,10 @@ public class SetmealController {
   }
 
 
+
   // 请求套餐数据的接口
   @GetMapping("/list")
+  @Cacheable(value = "setmealCache", key = "#setmeal.categoryId + '_' + #setmeal.status")
   public Result<List<Setmeal>> list(Setmeal setmeal) {
     Long categoryId = setmeal.getCategoryId();
     Integer status = setmeal.getStatus();
