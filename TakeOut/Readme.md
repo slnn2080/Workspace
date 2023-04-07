@@ -332,7 +332,7 @@ spring:
     name: reggie_take_out
   datasource:
 
-    # 这里使用 druid 报错 我们把它删掉就可以了
+    # 这里使用 druid 报错 我们把druid删掉 4要素前移到datasource下就可以了
     druid:
       driver-class-name: com.mysql.cj.jdbc.Driver
       url: jdbc:mysql://localhost:3306/reggie?serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=utf-8&zeroDateTimeBehavior=convertToNull&useSSL=false&allowPublicKeyRetrieval=true
@@ -7166,7 +7166,7 @@ echo 项目启动完成
 
 <br>
 
-### 解决方式:
+### 解决方式: 缓存
 通过缓存来解决这个问题, 因为缓存都是内存操作 相对于数据库查询操作来说 它的访问数据要快上很多
 
 <br>
@@ -7174,8 +7174,575 @@ echo 项目启动完成
 我们点击 [菜品分类] 的时候 并不是直接查询数据库 而是先看缓存中有没有相应的数据 
 
 - 如果有数据的话 就不用再查数据库了, 直接将数据返回给页面
-- 如果没有数据的话 再查数据库
+- 如果没有则查询数据库, 并将查询到的菜品数据放入Redis中
 
 <br><br>
 
+## 准备工作:
+
+### 导入Redis依赖
+```xml
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-data-redis</artifactId>
+</dependency>
+```
+
+<br>
+
+### 配置文件: 配置Redis
+```yml
+server:
+  port: 8080
+spring:
+  application:
+    #应用的名称，可选
+    name: reggie_take_out
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/reggie?serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=utf-8&zeroDateTimeBehavior=convertToNull&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+
+  # 配置Redis相关
+  redis:
+    host: localhost
+    port: 6379
+    # password:
+    database: 0
+
+mybatis-plus:
+  configuration:
+    #在映射实体或者属性时，将数据库中表名和字段名中的下划线去掉，按照驼峰命名法映射
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: ASSIGN_ID
+
+
+
+# 自定义属性:
+reggie:
+  path: /Users/liulin/Desktop//Pic/reggie/imgs/
+```
+
+<br>
+
+### 配置Redis的配置类
+处理存储到Redis数据库中key的序列化问题
+
+```java
+package com.sam.reggie.config;
+
+import org.springframework.cache.annotation.CachingConfigurerSupport;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.serializer.StringRedisSerializer;
+
+@Configuration
+public class RedisConfig extends CachingConfigurerSupport {
+
+  // 自己创建一个设置了序列化器的RedisTemplate对象 后续我们使用的就是我们自己创建的RedisTemplate
+  @Bean
+  public RedisTemplate<Object, Object> redisTemplate(RedisConnectionFactory connectionFactory) {
+    RedisTemplate<Object, Object> redisTemplate = new RedisTemplate<>();
+    redisTemplate.setKeySerializer(new StringRedisSerializer());
+    redisTemplate.setConnectionFactory(connectionFactory);
+    return redisTemplate;
+  }
+}
+```
+
+<br><br>
+
+## 优化: 缓存短信验证码
+我们项目中的短信的验证码是存储在session中, session的有效期默认是30分钟 对于我们的短信验证码来说 它的有效期一般会设置为5分钟
+
+我们接下来将代码的短信验证码部分放到session中进行保存, 并设置验证码的有效期为5分钟
+
+<br>
+
+### 回顾: 
+现在的项目会在 [点击发送验证] 按钮的时候会发起请求验证码的请求 在控制器方法中 
+
+我们会拿到验证码, 并将验证码以手机号为key放到session中, 然后再将验证码返回给前端
+```java
+@GetMapping("/sendMsg/{phone}")
+public Result<String> code(@PathVariable String phone, HttpServletRequest req) {
+
+  // 获取手机号
+  System.out.println("phone = " + phone);
+
+  // 判断手机号是否为空 如果为空则不发送短信
+  if(StringUtils.isNotBlank(phone)) {
+    // 生成随机的验证码
+    String code = SMSUtils.generateCode();
+
+    // 调用阿里云提供的短信服务 发送短信
+    // SMSUtils.sendMessage("瑞吉外卖", "SMS-101012", phone, code)
+
+    // 将验证码保存到session, 用于一会校验前端输入的验证码是否正确, 手机号作为key
+    req.getSession().setAttribute(phone, code);
+
+    return Result.success(code);
+  }
+
+  return Result.error("短信发送失败");
+}
+```
+
+<br>
+
+然后我们在登录接口中 根据手机号从session中取出验证码 再和前端提交的表单中的验证码做比对, 验证登录情况
+
+<br>
+
+### 实现思路:
+1. 在服务端UserController中注入RedisTemplate对象, 用于操作Reids
+
+2. 在服务端UserController的sendMsg方法中, 将随机生成的验证码缓存到Redis中, 并设置有效期为5分钟
+
+3. 在服务端UserController的login方法中, 从Redis中获取缓存的验证码 **如果登录成功则删除Redis中的验证码**
+```
+因为我们登录成功了 所以缓存的验证码就没有用了, 所以直接删除掉
+```
+
+<br>
+
+### 代码实现:
+**缓存验证码:**  
+我们在用户点击 [发送验证码] 请求对应的控制器方法中 写逻辑
+
+**要点:**  
+我们在调用redisTemplate的set方法时, 我们传入的时间是的类型是Long, 如5L
+
+```java
+// 发送验证码:
+@GetMapping("/sendMsg/{phone}")
+public Result<String> code(@PathVariable String phone, HttpServletRequest req) {
+
+  // 获取手机号
+  System.out.println("phone = " + phone);
+
+  // 判断手机号是否为空 如果为空则不发送短信
+  if(StringUtils.isNotBlank(phone)) {
+    // 生成随机的验证码
+    String code = SMSUtils.generateCode();
+
+    // 调用阿里云提供的短信服务 发送短信
+    // SMSUtils.sendMessage("瑞吉外卖", "SMS-101012", phone, code)
+
+    // 将验证码保存到session, 用于一会校验前端输入的验证码是否正确, 手机号作为key
+    // req.getSession().setAttribute(phone, code);
+
+    // 将手机验证码保存到Redis中, 并且设置有效期为5分钟
+    redisTemplate.opsForValue().set(phone, code, 5L, TimeUnit.MINUTES);
+    return Result.success(code);
+  }
+
+  return Result.error("短信发送失败");
+}
+```
+
+<br>
+
+**验证 验证码:**  
+我们在用户登录请求对应的控制器方法中写对应的判断验证码是否正确的逻辑
+
+```java
+@PostMapping("login")
+public Result<User> login(@RequestBody Map<String, String> map, HttpSession session) {
+
+  // 获取手机号 和 验证码
+  String phone = map.get("phone").toString();
+  String code = map.get("code").toString();
+
+  // 根据手机号获取session中的验证码
+  // String codeInSession = (String) session.getAttribute(phone);
+
+  // 从Redis中获取我们缓存的验证码
+  String codeInRedis = (String) redisTemplate.opsForValue().get(phone);
+
+
+
+  // 进行验证码的比对
+  if(codeInRedis != null && codeInRedis.equals(code)) {
+    // 如果验证码比对成功 则说明登录成功, 判断当前手机号是否是新用户
+    LambdaQueryWrapper<User> userLambdaQueryWrapper = new LambdaQueryWrapper<>();
+
+    userLambdaQueryWrapper.eq(User::getPhone, phone);
+
+    User user = userService.getOne(userLambdaQueryWrapper);
+
+    // 说明他是一个新用户 我们偷偷的进行无感注册
+    if(user == null) {
+      user = new User();
+      user.setPhone(phone);
+      userService.save(user);
+    }
+
+    // 登录成功后将用户的id放到session中 过滤器中会校验
+    session.setAttribute("user", user.getId());
+
+
+    // 如果用户登录成功则删除redis中缓存的验证码
+    redisTemplate.delete(phone);
+
+
+    return Result.success(user);
+  }
+
+  return Result.error("登录失败");
+}
+```
+
+<br><br>
+
+## 优化: 缓存菜品数据
+
+### 回顾:
+前面我们实现了移动端菜品查看功能, 对应的服务端方法为 DishController的list方法, 此方法会根据前端提交的查询条件进行数据库查询操作
+
+<br>
+
+**问题:**  
+在高并发的情况下, 频繁查询数据库会导致系统性能下降, 服务端相应时间增长, 现在需要对此方法进行缓存优化, 提供系统性能
+
+<br>
+
+### 实现思路:
+1. 改造 DishController的list方法, 先从Redis中获取菜品数据
+  - 如果有则直接返回, 无需查询数据库
+  - 如果没有则查询数据库, 并将查询到的菜品数据放入Redis中
+
+2. 改造 DishController 的 save 和 update 方法, 加入清理缓存的逻辑
+  - 更新菜品数据的时候 需要清理缓存中的数据
+  - 新增菜品数据的时候 需要清理缓存中的数据
+
+<br>
+
+**注意:**  
+在使用缓存的过程中, 要注意保证数据库中的数据 和 缓存中的数据的 **一致性**
+
+**如果数据库中的数据发生变化 需要及时清理缓存数据**
+
+<br>
+
+### 分析:
+我们点击左侧菜单栏中 [湘菜] 按钮, 则右侧展示区会展示 湘菜的相关菜品, 同样我们点击 [川菜] 按钮, 则会展示川菜相关的菜品
+
+那么我们要缓存菜品 是将所有菜品都缓存起来? 还是按照分类进行缓存 也就是 我们按照分类进行缓存?
+
+<br>
+
+**1. 分类缓存:**  
+- 湘菜分类下的所有菜品
+- 川菜分类下的所有菜品
+
+<br>
+
+**2. 直接缓存全部菜品**
+
+<br>
+
+**这里我们应该按照分类去缓存**, 因为我们点击一个分类只会展示该分类下对应的菜品就可以了 其它分类下的菜品是不需要展示的
+
+<br>
+
+### 代码实现:
+
+**改造 DishController - list:**  
+**要点:**  
+1. 我们要将数据缓存到数据库, 选择的就是String类型的方法, set get
+
+2. 我们要将菜品按照分类存储到Redis中, 我们的key选择: 菜品的状态 + 菜品分类的id
+```java
+// 设置Redis中获取菜品的key: dish_12124124_1
+String key = "dish_" + categoryId + "_" + dish.getStatus();
+```
+
+3. 缓存在redis中的菜品 最好也有过期时间
+
+<br>
+
+**整体代码部分:**  
+```java
+@GetMapping("/list")
+public Result<List<DishDto>> list(Dish dish) {
+
+  Long categoryId = dish.getCategoryId();
+
+  // 初始化返回结果
+  List<DishDto> dishDtoList = null;
+
+
+  // 设置Redis中获取菜品的key: dish_12124124_1
+  String key = "dish_" + categoryId + "_" + dish.getStatus();
+
+
+  // 1. 从redis中获取缓存数据, 该控制方法最后返回的数据类型就是 List<DishDto>
+  dishDtoList = (List<DishDto>) redisTemplate.opsForValue().get(key);
+
+
+  if(dishDtoList != null) {
+    // 如果存在 则直接返回 无需查询数据库
+    return Result.success(dishDtoList);
+  }
+
+  // 如果不存在 查询数据库 将查询到的菜品数据缓存到Redis
+  LambdaQueryWrapper<Dish> dishLambdaQueryWrapper = new LambdaQueryWrapper<>();
+
+  // 判断请求参数是否为空 为空则不拼接sql (在这里判断我觉得不好 因为category_id为null 不拼接的话 查询的就是所有数据)
+  // 停售产品不需要查出来
+  dishLambdaQueryWrapper
+      .eq(dish.getCategoryId() != null, Dish::getCategoryId, categoryId)
+      .ne(Dish::getStatus, 0)
+      .orderByAsc(Dish::getSort)
+      .orderByDesc(Dish::getUpdateTime);
+  List<Dish> list = dishService.list(dishLambdaQueryWrapper);
+
+
+  // 我们将上面查询出来的数据 移植到DishDto中, 并从Dish中获取id, 根据dish_id查询dish_flavor表获取数据
+  dishDtoList = list.stream().map(item -> {
+    // 创建 DishDto
+    DishDto dishDto = new DishDto();
+
+    // 给DishDto赋值
+    BeanUtils.copyProperties(item, dishDto);
+
+    Long dishCategoryId = item.getCategoryId();
+    Category category = categoryService.getById(dishCategoryId);
+    String categoryName = category.getName();
+    dishDto.setCategoryName(categoryName);
+
+    Long dishId = item.getId();
+    LambdaQueryWrapper<DishFlavor> dishFlavorLambdaQueryWrapper = new LambdaQueryWrapper<>();
+    dishFlavorLambdaQueryWrapper.eq(DishFlavor::getDishId, dishId);
+    List<DishFlavor> flavors = dishFlavorService.list(dishFlavorLambdaQueryWrapper);
+    dishDto.setFlavors(flavors);
+
+    // 将 Dish -> DishDto
+    return dishDto;
+
+  }).collect(Collectors.toList());
+
+
+  // 将查询到的菜品数据缓存到Redis, 设置数据的过期时间, 60分钟后也会自动清理掉
+  redisTemplate.opsForValue().set(key, dishDtoList, 60L, TimeUnit.MINUTES);
+
+
+  return Result.success(dishDtoList);
+}
+```
+
+<br>
+
+### 清理数据的逻辑:
+我们有两种清理方案:
+1. 全部清理, 我们将redis中的数据 不管什么分类 一次性的清理掉
+
+2. 精确清理, 比如我们修改或新增的是饮品, 那么我们就清理饮品下面的数据, 其它的缓存数据我们不清理
+
+两种方式都是可以的 
+
+<br>
+
+**改造 DishController - update:**  
+为了保证数据库中的数据和缓存中的数据的一致性 在新增 和 更新操作的时候 **要清理掉缓存**
+
+让进行获取操作的时候从redis中获取最新的数据
+
+<br>
+
+**要点:**  
+1. 清理缓存方案1: 清理所有菜品的缓存数据
+  - 先获取所有的菜品的key 
+  - 调用 delete() 方法 可以传入一个keys集合清理所有
+
+2. 清理缓存方案2: 精确清理
+  - 拿到指定的key
+  - 调用delete()方法
+
+```java
+ @PutMapping
+public Result<String> update(@RequestBody DishDto dishDto) {
+  dishService.updateDishAndDishFlavor(dishDto);
+
+
+
+  // 清理方案1: 清理所有菜品的缓存数据
+  Set keys = redisTemplate.keys("dish_*");
+  // redisTemplate.delete()方法 可以传入一个keys集合
+  redisTemplate.delete(keys);
+
+
+
+  // 清理方案2: 精确清理, 我们只清理指定分类下的菜品缓存数据
+  String key = "dish_" + dishDto.getCategoryId() + dishDto.getStatus();
+  redisTemplate.delete(key);
+
+
+
+  return Result.success("修改菜品信息成功");
+}
+```
+
+<br>
+
+**改造 DishController - save:**  
+为了保证数据库中的数据和缓存中的数据的一致性 在新增 和 更新操作的时候 **要清理掉缓存**
+
+让进行获取操作的时候从redis中获取最新的数据
+
+```java
+@PostMapping
+// 使用DishDto来接收前端的请求参数
+public Result<String> saveWithFlavor(@RequestBody DishDto dishDto) {
+  // 往两张表中插入数据的逻辑 丢到service层中处理
+  dishService.saveWithFlavor(dishDto);
+
+  Set keys = redisTemplate.keys("dish_*");
+  redisTemplate.delete(keys);
+  
+  return Result.success("添加菜品成功");
+}
+```
+
+<br><br>
+
+# 优化: 缓存套餐数据 - SpringCache + Redis
+上面我们对高并发场景下的用户点击 [菜品分类] 展示对应菜品的部分 使用 Redis来做了缓存处理
+
+因为在高并发的情况下 频繁查询数据库会导致系统性能下降, 服务端响应时间增长
+
+我们优化的部分就是 当用户点击 [菜品分类] 的按钮后 就会将请求到的菜品对应的数据 缓存到Redis中
+
+当下一次我们再次点击 [菜品分类] 的时候, 如果Redis中有对应的数据 则直接从Redis中返回, 如果Redis中没有对应的数据的时候 则与数据库进行交互 查询到数据库后 再将数据保存到Redis中
+
+<br>
+
+这个部分我们也要使用同样的逻辑来缓存套餐的数据, 只不过我们使用的是SpringCache + Redis
+
+<br>
+
+### 引入依赖:
+```xml
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-cache</artifactId>
+</dependency>
+
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-data-redis</artifactId>
+</dependency>
+```
+
+<br>
+
+### 主启动类添加注解
+```java
+@EnableCaching
+public class ReggieApplication {
+  public static void main(String[] args) {
+    SpringApplication.run(ReggieApplication.class,args);
+    log.info("项目启动成功...");
+  }
+}
+```
+
+<br>
+
+### 配置文件中设置缓存数据的过期时间
+```yml
+server:
+  port: 8080
+spring:
+  application:
+    name: reggie_take_out
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/reggie?serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=utf-8&zeroDateTimeBehavior=convertToNull&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+  # 配置Redis相关
+  redis:
+    host: localhost
+    port: 6379
+    # password:
+    database: 0
+  # 缓存数据的过期时间设置
+  cache: 
+    redis:
+      time-to-live: 1800000
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: ASSIGN_ID
+
+
+
+# 自定义属性:
+reggie:
+  path: /Users/liulin/Desktop//Pic/reggie/imgs/
+```
+
+<br>
+
+### 实现思路:
+目标Controller: SetmealController
+
+1. 查询功能相关的控制器方法上 添加 @Cacheable 注解 (list)
+
+2. 新增 和 修改 功能相关的控制器方法上 添加 @CacheEvict 注解 (save / delete)
+
+<br>
+
+### 将 Result 结果类 实现 Serializable
+只有实现Serializable的类 才可以被缓存到Redis中
+```java
+public class Result<T> implements Serializable { }
+```
+
+<br>
+
+### 修改部分:
+
+**list控制方法:**  
+将套餐数据缓存在 ``setmealCache`` 区域, 数据以categoryId + status 为key存储
+
+```java
+@GetMapping("/list")
+@Cacheable(value = "setmealCache", key = "#setmeal.categoryId + '_' + #setmeal.status")
+public Result<List<Setmeal>> list(Setmeal setmeal) {
+}
+```
+
+<br>
+
+**delete / save控制器方法:**  
+删除缓存中的数据有两种方式
+1. 全部删除, 比如我们删除一个套餐的数据的时候 就将整个套餐的相关缓存全部删除 
+```java
+@CacheEvict(value = "setmealCache", allEntries = true)
+```
+
+2. 精确删除, 指定 value 和 key 属性
+
+```java
+@DeleteMapping
+// 全部删除
+@CacheEvict(value = "setmealCache", allEntries = true)
+public Result<String> delete(@RequestParam List<Long> ids) {
+  setmealService.deleteSetmealAndSetmealDish(ids);
+  return Result.success("删除套餐成功");
+}
+```
+
+<br><br>
 
