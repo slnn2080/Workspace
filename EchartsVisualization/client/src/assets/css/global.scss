@@ -1,0 +1,33 @@
+html, body, #app {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+}
+
+// xxxPage的样式
+.common-page {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+// chart的亲父亲
+.common-container {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+// chart容器
+.common-chart {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+canvas {
+  border-radius: 20px;
+}
