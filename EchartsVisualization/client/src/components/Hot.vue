@@ -13,13 +13,24 @@ export default defineComponent({
       baseSize: null,
     }
   },
+  created() {
+    // getData方法做为注册的回调
+    this.$socket.registerCallBack("hotData", this.getData)
+  },
   mounted() {
     this.initChart()
-    this.getData()
+
+    this.$socket.send({
+      action: "getData",
+      socketType: "hotData",
+      chartName: "hot",
+    })
+
     window.addEventListener("resize", this.screenAdapter)
     this.screenAdapter()
   },
   beforeDestroy() {
+    this.$socket.unRegisterCallBack("hotData")
     window.removeEventListener("resize", this.screenAdapter)
   },
   methods: {
@@ -65,10 +76,10 @@ export default defineComponent({
       this.chart.setOption(initOps)
     },
     // 获取数据
-    async getData() {
-      const { data: res } = await this.$http({
-        url: "/api/hot"
-      })
+    async getData(data) {
+      // const { data: res } = await this.$http({
+      //   url: "/api/hot"
+      // })
       /*
       [{
           // 我们会通过按钮切换 一级分类
@@ -88,9 +99,12 @@ export default defineComponent({
         }]
       */
       // 我们将3个级别的分类都交给detailData
-      this.detailData = res
+      // this.detailData = res
 
       // 处理数据 展示图标
+      // this.updateChart()
+
+      this.detailData = data
       this.updateChart()
     },
     updateChart() {

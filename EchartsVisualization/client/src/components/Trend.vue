@@ -41,9 +41,22 @@ export default defineComponent({
       }
     }
   },
+
+  // 注册回调函数
+  created() {
+    // getData方法做为注册的回调
+    this.$socket.registerCallBack("trendData", this.getData)
+  },
   mounted() {
     this.initChart()
-    this.getData()
+
+    // 向websocket发送消息
+    this.$socket.send({
+      action: "getData",
+      socketType: "trendData",
+      chartName: "trend",
+    })
+
     window.addEventListener("resize", this.screenAdapter)
     // 页面加载的时候 主动适配当前的屏幕尺寸
     this.screenAdapter()
@@ -51,13 +64,21 @@ export default defineComponent({
   beforeDestroy() {
     window.removeEventListener("resize", this.screenAdapter)
     clearInterval(this.timer)
+
+    // 取消注册的回调函数
+    this.$socket.unRegisterCallBack("trendData")
   },
   methods: {
-    async getData() {
-      const { data: res } = await this.$http({
-        url: "/api/trend"
-      })
-      this.detailData = res
+    async getData(data) {
+      /*
+        http版时的原逻辑
+        const { data: res } = await this.$http({
+          url: "/api/trend"
+        })
+        this.detailData = res
+        this.updateChart()
+      */
+      this.detailData = data
       this.updateChart()
     },
     initChart() {

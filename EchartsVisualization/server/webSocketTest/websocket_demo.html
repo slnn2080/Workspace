@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Title</title>
+</head>
+<body>
+
+  <button id="conn">连接服务端</button>
+  <br>
+  <button id="send">发送数据给服务端</button>
+  <br>
+  <div>
+    从服务端接收的数据如下: <span id="text-area"></span>
+  </div>
+<script>
+  const connBtn = document.querySelector("#conn")
+  const sendBtn = document.querySelector("#send")
+  const textArea = document.querySelector("#text-area")
+
+  let ws = null
+  connBtn.addEventListener("click", () => {
+    // 创建 websocket 链接 指明连接到哪里
+    ws = new WebSocket("ws://localhost:8082")
+
+    // 链接成功时的回调函数
+    ws.addEventListener("open", () => {
+      console.log("连接服务器 成功了")
+    })
+
+    // 链接失败或关闭的回调函数
+    ws.addEventListener("close", () => {
+      console.log("连接服务器 失败了")
+    })
+
+    // 接收数据:
+    ws.addEventListener("message", e => {
+      console.log("来自服务器的数据", e.data)
+      textArea.innerHTML = e.data
+    })
+  })
+
+  // 向服务器发送数据
+  sendBtn.addEventListener("click", () => {
+    let data = {
+      action: "getData",
+      charName: "seller",
+      socketType: "sellerData",
+      value: ""
+    }
+
+    data = JSON.stringify(data)
+    ws.send(data)
+  })
+</script>
+</body>
+</html>

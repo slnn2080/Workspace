@@ -17,15 +17,29 @@ export default defineComponent({
       timer: null
     }
   },
+  // 注册回调函数
+  created() {
+    // getData方法做为注册的回调
+    this.$socket.registerCallBack("rankData", this.getData)
+  },
   mounted() {
     this.initChart()
-    this.getData()
+    // this.getData()
+    // 向websocket发送消息
+    this.$socket.send({
+      action: "getData",
+      socketType: "rankData",
+      chartName: "rank",
+    })
     window.addEventListener("resize", this.screenAdapter)
     this.screenAdapter()
   },
   beforeDestroy() {
     clearInterval(this.timer)
     window.removeEventListener("resize", this.screenAdapter)
+
+    // 取消注册的回调函数
+    this.$socket.unRegisterCallBack("trendData")
   },
   methods: {
     initChart() {
@@ -91,22 +105,26 @@ export default defineComponent({
       })
     },
     // 获取数据
-    async getData() {
-      const { data: res } = await this.$http({
-        url: "/api/rank"
-      })
+    async getData(data) {
+      // const { data: res } = await this.$http({
+      //   url: "/api/rank"
+      // })
       // 对返回的数据进行排序
-      res.sort((a, b) => b.value - a.value)
-      this.detailData = res
+      // res.sort((a, b) => b.value - a.value)
+      // this.detailData = res
       /*
         [
           { name: "广东", value: 230 },
           { name: "福建", value: 213 },
         ]
       */
-      this.updateChart()
+      // this.updateChart()
 
       // 在获取数据之后我们再开始bar的平移效果
+      // this.startInterval()
+      data.sort((a, b) => b.value - a.value)
+      this.detailData = data
+      this.updateChart()
       this.startInterval()
     },
     // 处理bar的平移效果的回调

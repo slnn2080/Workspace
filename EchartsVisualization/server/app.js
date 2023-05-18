@@ -22,3 +22,9 @@ app.use(dataFn)
 app.listen(8081, () => {
   console.log("服务器监听 8081 端口")
 })
+
+
+// 因为 webscoket 的监听方法
+const { listen } = require("./service/websocket_service")
+// 开启 webscoket 监听 监听客户端的连接, 当某一个客户端连接成功之后 就会对这个客户端进行message事件的监听
+listen()

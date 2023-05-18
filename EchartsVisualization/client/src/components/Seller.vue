@@ -24,8 +24,19 @@ export default defineComponent({
       timer: null
     }
   },
+  // 注册回调函数
+  created() {
+    // getData方法做为注册的回调
+    this.$socket.registerCallBack("sellerData", this.getData)
+  },
   mounted() {
-    this.getData()
+    // this.getData()
+    // 向websocket发送消息
+    this.$socket.send({
+      action: "getData",
+      socketType: "sellerData",
+      chartName: "seller",
+    })
     this.initChart()
 
     // 监视窗口改变的事件
@@ -36,6 +47,9 @@ export default defineComponent({
   beforeDestroy() {
     clearInterval(this.timer)
     window.removeEventListener("resize", this.screenAdapter)
+
+    // 取消注册的回调函数
+    this.$socket.unRegisterCallBack("trendData")
   },
   methods: {
     // window窗口尺寸发生变化时的回调 完成屏幕的适配
@@ -192,24 +206,29 @@ export default defineComponent({
     },
 
     // 获取服务器数据
-    async getData() {
-      const { data: res } = await this.$http({
-        url: "/api/seller"
-      })
+    async getData(data) {
+      // const { data: res } = await this.$http({
+      //   url: "/api/seller"
+      // })
 
       // 处理请求回来的数据 整理为 从小到大 的顺序
-      res.sort((a, b) => a.value - b.value)
+      // res.sort((a, b) => a.value - b.value)
 
-      this.detailData = res
+      // this.detailData = res
       // 每5个元素为一页 我们计算总页数
       // 方式1:
-      this.limit.totalPage = Math.ceil(this.detailData.length / this.limit.pageSize)
+      // this.limit.totalPage = Math.ceil(this.detailData.length / this.limit.pageSize)
 
       // 方式2:
       // this.totalPage = this.detailData.length % this.limit.pageSize === 0 ? this.detailData.length / this.limit.pageSize : this.detailData.length / 5 + 1
-      this.updateChart()
+      // this.updateChart()
 
       // 开启定时器 刷新数据
+      // this.startInterval()
+      data.sort((a, b) => a.value - b.value)
+      this.detailData = data
+      this.limit.totalPage = Math.ceil(this.detailData.length / this.limit.pageSize)
+      this.updateChart()
       this.startInterval()
     },
     // 更新图表

@@ -17,15 +17,28 @@ export default defineComponent({
       isRequesting: false
     }
   },
+  // 注册回调函数
+  created() {
+    // getData方法做为注册的回调
+    this.$socket.registerCallBack("mapData", this.getData)
+  },
   mounted() {
     this.initChart()
-    this.getData()
+    // this.getData()
+    // 向websocket发送消息
+    this.$socket.send({
+      action: "getData",
+      socketType: "mapData",
+      chartName: "map",
+    })
 
     window.addEventListener("resize", this.screenAdapter)
     this.screenAdapter()
   },
   beforeDestroy() {
     window.removeEventListener("resize", this.screenAdapter)
+    // 取消注册的回调函数
+    this.$socket.unRegisterCallBack("trendData")
   },
   methods: {
     async initChart() {
@@ -114,17 +127,20 @@ export default defineComponent({
         this.chart.resize()
       })
     },
-    async getData() {
+    async getData(data) {
       if (this.isRequesting) {
         return
       }
-      const { data: res } = await this.$http({
-        url: "/api/map"
-      })
-
+      // const { data: res } = await this.$http({
+      //   url: "/api/map"
+      // })
+      //
+      // this.isRequesting = false
+      //
+      // this.detailData = res
+      // this.updateChart()
+      this.detailData = data
       this.isRequesting = false
-
-      this.detailData = res
       this.updateChart()
     },
     updateChart() {

@@ -14,15 +14,28 @@ export default defineComponent({
       currentIndex: 0
     }
   },
+  created() {
+    // getData方法做为注册的回调
+    this.$socket.registerCallBack("stockData", this.getData)
+  },
   mounted() {
     this.initChart()
-    this.getData()
+    // this.getData()
+    // 向websocket发送消息
+    this.$socket.send({
+      action: "getData",
+      socketType: "stockData",
+      chartName: "stock",
+    })
     window.addEventListener("resize", this.screenAdapter)
     this.screenAdapter()
   },
   beforeDestroy() {
     window.removeEventListener("resize", this.screenAdapter)
     clearInterval(this.timer)
+
+    // 取消注册的回调函数
+    this.$socket.unRegisterCallBack("trendData")
   },
   methods: {
     initChart() {
@@ -46,11 +59,14 @@ export default defineComponent({
         this.startInterval()
       })
     },
-    async getData() {
-      const { data: res } = await this.$http({
-        url: "/api/stock"
-      })
-      this.detailData = res
+    async getData(data) {
+      // const { data: res } = await this.$http({
+      //   url: "/api/stock"
+      // })
+      // this.detailData = res
+      // this.updateChart()
+
+      this.detailData = data
       this.updateChart()
 
       // 有数据之后 就要调用定时器方法
@@ -155,8 +171,6 @@ export default defineComponent({
       // 内外圆半径
       const innerRadius = baseSize * 3
       const outerRadius = baseSize * 2.75
-
-      console.log(baseSize, innerRadius, outerRadius)
 
       const adapterOps = {
         title: {
