@@ -1,7 +1,7 @@
 <script>
 import {defineComponent} from 'vue'
-// 引入主题
-import chalk from "../assets/theme/chalk"
+import {mapState} from "vuex";
+import { getThemeValue } from '@/utils/theme_utils'
 
 export default defineComponent({
   name: "Seller",
@@ -11,7 +11,6 @@ export default defineComponent({
       detailData: [],
       // 图表实例
       chart: null,
-      theme: chalk,  // vintage | chalk
       // 分页处理逻辑
       limit: {
         // 当前显示的页数 (会通过定时器不断地改变它的值)
@@ -22,6 +21,23 @@ export default defineComponent({
         totalPage: 0
       },
       timer: null
+    }
+  },
+  computed: {
+    ...mapState(["theme"]),
+    commonContainer() {
+      return {
+        backgroundColor: getThemeValue(this.theme).itemColor
+      }
+    }
+  },
+  watch: {
+    theme () {
+      console.log('主题切换了')
+      this.chart.dispose() // 销毁当前的图表
+      this.initChart() // 重新以最新的主题名称初始化图表对象
+      this.screenAdapter() // 完成屏幕的适配
+      this.updateChart() // 更新图表的展示
     }
   },
   // 注册回调函数
@@ -95,7 +111,7 @@ export default defineComponent({
     // 初始化 echarts 实例对象
     initChart() {
       // 获取 echarts 实例对象
-      this.chart = this.$echarts.init(this.$refs.chart, chalk)
+      this.chart = this.$echarts.init(this.$refs.chart, this.$echartsTheme[this.theme])
 
       // 我们将options配置拆分成如下的几个部分来管理
       // 1. 对图表的初始化配置
@@ -105,9 +121,9 @@ export default defineComponent({
           text: "▎商家销售统计",
           left: "5%",
           top: "3%",
-          textStyle: {
-            fontSize: 30
-          }
+          // textStyle: {
+          //   fontSize: 30
+          // }
         },
         grid: {
           // 位置相关配置
@@ -288,7 +304,7 @@ export default defineComponent({
 
 <!-- 商家销量统计的横向柱状图 -->
 <template>
-  <div class="common-container">
+  <div class="common-container" :style="commonContainer">
     <!-- chart容器 -->
     <div class="common-chart" ref="chart"></div>
   </div>

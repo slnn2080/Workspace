@@ -1,7 +1,8 @@
 <script>
 import {defineComponent} from 'vue'
-// 引入主题
-import chalk from "../assets/theme/chalk"
+import {mapState} from "vuex";
+import { getThemeValue } from '@/utils/theme_utils'
+
 
 export default defineComponent({
   name: "Trend",
@@ -16,7 +17,21 @@ export default defineComponent({
       baseSize: 0
     }
   },
+  watch: {
+    theme () {
+      console.log('主题切换了')
+      this.chart.dispose() // 销毁当前的图表
+      this.initChart() // 重新以最新的主题名称初始化图表对象
+      this.screenAdapter() // 完成屏幕的适配
+      this.updateChart() // 更新图表的展示
+    }
+  },
   computed: {
+    commonContainer() {
+      return {
+        backgroundColor: getThemeValue(this.theme).itemColor
+      }
+    },
     selectTypes() {
       if (this.detailData.type) {
         /*
@@ -37,11 +52,12 @@ export default defineComponent({
     // 设置给标题的样式
     titleStyle() {
       return {
-        fontSize: this.baseSize + "px"
+        fontSize: this.baseSize + "px",
+        color: getThemeValue(this.theme).titleColor
       }
-    }
+    },
+    ...mapState(["theme"])
   },
-
   // 注册回调函数
   created() {
     // getData方法做为注册的回调
@@ -82,7 +98,7 @@ export default defineComponent({
       this.updateChart()
     },
     initChart() {
-      this.chart = this.$echarts.init(this.$refs.chart, chalk)
+      this.chart = this.$echarts.init(this.$refs.chart, this.$echartsTheme[this.theme])
       const initOps = {
         tooltip: {
           trigger: "axis"
@@ -209,7 +225,7 @@ export default defineComponent({
 </script>
 
 <template>
-  <div class="common-container">
+  <div class="common-container" :style="commonContainer">
     <!-- 标题部分结构 -->
     <div class="title">
       <span :style="titleStyle">▎{{ selectTile }}</span>
@@ -253,7 +269,7 @@ export default defineComponent({
   .select-container {
     position: absolute;
     left: 12.5%;
-    background: #2B3340;
+    // background: #2B3340;
   }
 }
 </style>

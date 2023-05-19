@@ -82,7 +82,6 @@ export  default class SocketService {
     }
 
     this.ws.onmessage = e => {
-
       let param = JSON.parse(e.data)
 
       const { action, socketType} = param
@@ -98,9 +97,9 @@ export  default class SocketService {
           this.callBackMapping[socketType].call(this, data)
 
         } else if (action === "fullScreen") {
-
+          this.callBackMapping[socketType].call(this, param)
         } else if (action === "themeChange") {
-
+          this.callBackMapping[socketType].call(this, param)
         }
       }
     }

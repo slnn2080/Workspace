@@ -1,8 +1,9 @@
 <script>
 import {defineComponent} from 'vue'
-import chalk from "../assets/theme/chalk"
 // 引入拼音映射文件
 import { getProvinceMapInfo } from "@/utils/map_utils"
+import { mapState } from 'vuex'
+import { getThemeValue } from '@/utils/theme_utils'
 
 export default defineComponent({
   name: "Map",
@@ -15,6 +16,23 @@ export default defineComponent({
       selectedMapData: {},
       // 判断请求重复标识
       isRequesting: false
+    }
+  },
+  computed: {
+    ...mapState(["theme"]),
+    commonContainer() {
+      return {
+        backgroundColor: getThemeValue(this.theme).itemColor
+      }
+    }
+  },
+  watch: {
+    theme () {
+      console.log('主题切换了')
+      this.chart.dispose() // 销毁当前的图表
+      this.initChart() // 重新以最新的主题名称初始化图表对象
+      this.screenAdapter() // 完成屏幕的适配
+      this.updateChart() // 更新图表的展示
     }
   },
   // 注册回调函数
@@ -42,7 +60,7 @@ export default defineComponent({
   },
   methods: {
     async initChart() {
-      this.chart = this.$echarts.init(this.$refs.chart, chalk)
+      this.chart = this.$echarts.init(this.$refs.chart, this.$echartsTheme[this.theme])
 
       // 获取中国地图的矢量数据
       const { data: res } = await this.$http({
@@ -57,16 +75,18 @@ export default defineComponent({
           text: "▎商家分布",
           left: "5%",
           top: "3%",
-          textStyle: {
-            fontSize: 30
-          }
+          // textStyle: {
+          //   fontSize: 30
+          // }
         },
         geo: {
           map: "china",
 
           // 配置地图的位置
-          top: "5%",
-          bottom: "5%",
+          // top: "10%",
+          // bottom: "10%",
+          left: "10%",
+          right: "10%",
 
           // 控制地图中的颜色
           itemStyle: {
@@ -179,12 +199,12 @@ export default defineComponent({
       const baseSize = this.$refs.chart.offsetWidth / 100 * 3.6
       const adapterOps = {
         title: {
-          fontSize: baseSize
+          fontSize: baseSize / 2
         },
         legend: {
           // 图例文字的大小
           textStyle: {
-            fontSize: baseSize / 2
+            fontSize: baseSize / 1.5
           },
           // 图例的宽度
           itemWidth: baseSize / 2,
@@ -209,7 +229,7 @@ export default defineComponent({
 </script>
 
 <template>
-  <div class="common-container" @dblclick="backChinaMap">
+  <div class="common-container" :style="commonContainer" @dblclick="backChinaMap">
     <!-- chart容器 -->
     <div class="common-chart" ref="chart"></div>
   </div>

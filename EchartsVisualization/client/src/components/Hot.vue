@@ -1,7 +1,8 @@
 <script>
 import {defineComponent} from 'vue'
 // 引入主题
-import chalk from "../assets/theme/chalk"
+import { mapState } from 'vuex'
+import { getThemeValue } from '@/utils/theme_utils'
 export default defineComponent({
   name: "Hot",
   data() {
@@ -11,6 +12,29 @@ export default defineComponent({
       currentIndex: 0,
       firstCategoryTitle: null,
       baseSize: null,
+    }
+  },
+  computed: {
+    commonStyle() {
+      return {
+        fontSize: this.baseSize * 1.5 + 'px',
+        color: getThemeValue(this.theme).titleColor
+      }
+    },
+    ...mapState(["theme"]),
+    commonContainer() {
+      return {
+        backgroundColor: getThemeValue(this.theme).itemColor
+      }
+    }
+  },
+  watch: {
+    theme () {
+      console.log('主题切换了')
+      this.chart.dispose() // 销毁当前的图表
+      this.initChart() // 重新以最新的主题名称初始化图表对象
+      this.screenAdapter() // 完成屏幕的适配
+      this.updateChart() // 更新图表的展示
     }
   },
   created() {
@@ -36,16 +60,16 @@ export default defineComponent({
   methods: {
     // 初始化图表
     initChart() {
-      this.chart = this.$echarts.init(this.$refs.chart, chalk)
+      this.chart = this.$echarts.init(this.$refs.chart, this.$echartsTheme[this.theme])
       const initOps = {
         // 标题:
         title: {
           text: "▎热销商品销售金额占比统计",
           left: "5%",
           top: "3%",
-          textStyle: {
-            fontSize: 30
-          }
+          // textStyle: {
+          //   fontSize: 30
+          // }
         },
         // 饼图的位置控制
         series: [
@@ -253,8 +277,8 @@ export default defineComponent({
         ],
         legend: {
           // 控制图例的宽度
-          itemWidth: this.baseSize / 2,
-          itemHeight: this.baseSize / 2,
+          itemWidth: this.baseSize,
+          itemHeight: this.baseSize,
           // 间隔
           itemGap: this.baseSize / 2,
           // 文字大小
@@ -271,23 +295,23 @@ export default defineComponent({
 </script>
 
 <template>
-  <div class="common-container">
+  <div class="common-container" :style="commonContainer">
     <!-- chart容器 -->
     <div class="common-chart" ref="chart"></div>
     <!-- 两个箭头 -->
     <span
       class="iconfont arrow arrow-left"
-      :style="{fontSize: baseSize * 1.5 + 'px'}"
+      :style="commonStyle"
       @click="moveHandler(false)"
     >&#xe6ef;</span>
     <span
       class="iconfont arrow arrow-right"
-      :style="{fontSize: baseSize * 1.5 + 'px'}"
+      :style="commonStyle"
       @click="moveHandler(true)"
     >&#xe6ed;</span>
     <h3
       class="first-category-title"
-      :style="{fontSize: baseSize + 'px'}"
+      :style="commonStyle"
     >{{firstCategoryTitle}}</h3>
   </div>
 </template>

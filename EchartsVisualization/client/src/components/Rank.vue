@@ -1,7 +1,7 @@
 <script>
 import {defineComponent} from 'vue'
-// 引入主题
-import chalk from "../assets/theme/chalk"
+import { mapState } from 'vuex'
+import { getThemeValue } from '@/utils/theme_utils'
 export default defineComponent({
   name: "Rank",
   data() {
@@ -15,6 +15,23 @@ export default defineComponent({
         endValue: 9
       },
       timer: null
+    }
+  },
+  computed: {
+    ...mapState(["theme"]),
+    commonContainer() {
+      return {
+        backgroundColor: getThemeValue(this.theme).itemColor
+      }
+    }
+  },
+  watch: {
+    theme () {
+      console.log('主题切换了')
+      this.chart.dispose() // 销毁当前的图表
+      this.initChart() // 重新以最新的主题名称初始化图表对象
+      this.screenAdapter() // 完成屏幕的适配
+      this.updateChart() // 更新图表的展示
     }
   },
   // 注册回调函数
@@ -43,16 +60,16 @@ export default defineComponent({
   },
   methods: {
     initChart() {
-      this.chart = this.$echarts.init(this.$refs.chart, chalk)
+      this.chart = this.$echarts.init(this.$refs.chart, this.$echartsTheme[this.theme])
       const initOps = {
         // 标题相关
         title: {
           text: "▎地区销售排行",
           left: "5%",
           top: "3%",
-          textStyle: {
-            fontSize: 30
-          }
+          // textStyle: {
+          //   fontSize: 30
+          // }
         },
         // 坐标轴相关
         grid: {
@@ -234,7 +251,7 @@ export default defineComponent({
 </script>
 
 <template>
-  <div class="common-container">
+  <div class="common-container" :style="commonContainer">
     <!-- chart容器 -->
     <div class="common-chart" ref="chart"></div>
   </div>

@@ -57,7 +57,7 @@ function listen() {
       } else {
         // 原封不动的将所接收到的数据转发给每一个处于连接状态的客户端
         // wss.clients 为 处于连接的每一个客户端
-        wss.clients.forEach(client => client.send(msg))
+        wss.clients.forEach(client => client.send(msg.toString()))
       }
     })
 

@@ -1,7 +1,8 @@
 <script>
 import {defineComponent} from 'vue'
-// 引入主题
-import chalk from "../assets/theme/chalk"
+import {mapState} from "vuex";
+import { getThemeValue } from '@/utils/theme_utils'
+
 
 export default defineComponent({
   name: "Stock",
@@ -12,6 +13,23 @@ export default defineComponent({
       timer: null,
       // 分屏显示: 当前显示数据的页数
       currentIndex: 0
+    }
+  },
+  computed: {
+    ...mapState(["theme"]),
+    commonContainer() {
+      return {
+        backgroundColor: getThemeValue(this.theme).itemColor
+      }
+    }
+  },
+  watch: {
+    theme () {
+      console.log('主题切换了')
+      this.chart.dispose() // 销毁当前的图表
+      this.initChart() // 重新以最新的主题名称初始化图表对象
+      this.screenAdapter() // 完成屏幕的适配
+      this.updateChart() // 更新图表的展示
     }
   },
   created() {
@@ -39,7 +57,7 @@ export default defineComponent({
   },
   methods: {
     initChart() {
-      this.chart = this.$echarts.init(this.$refs.chart, chalk)
+      this.chart = this.$echarts.init(this.$refs.chart, this.$echartsTheme[this.theme])
       const initOps = {
         // 标题相关配置
         title: {
@@ -196,7 +214,7 @@ export default defineComponent({
 </script>
 
 <template>
-  <div class="common-container">
+  <div class="common-container" :style="commonContainer">
     <!-- chart容器 -->
     <div class="common-chart" ref="chart"></div>
   </div>
