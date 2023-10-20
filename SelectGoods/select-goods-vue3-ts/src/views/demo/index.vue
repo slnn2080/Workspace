@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import AppHeader from './child/AppHeader.vue'
-// import SideBar from './child/SideBar.vue'
-// import Main from './child/Main.vue'
+import AppSideBar from './child/AppSideBar.vue'
+import AppMain from './child/AppMain.vue'
+import ModulePanel from './child/ModulePanel.vue'
+
+defineOptions({
+  name: 'Layout'
+})
 </script>
 
 <template>
@@ -10,23 +15,38 @@ import AppHeader from './child/AppHeader.vue'
       <el-header height="64px">
         <AppHeader />
       </el-header>
-      <!-- <el-container>
-        <el-aside width="200px">
-          <SideBar />
+      <el-container>
+        <el-aside width="300px">
+          <AppSideBar />
         </el-aside>
         <el-main>
-          <Main />
+          <AppMain />
         </el-main>
-      </el-container> -->
+      </el-container>
     </el-container>
+    <div class="module-area" v-if="false">
+      <ModulePanel />
+    </div>
   </div>
 </template>
 
 <style scoped lang="scss">
+.common-layout {
+  height: 100%;
+}
+
 .el-header,
 .el-aside,
 .el-main {
   padding: 0;
   margin: 0;
+}
+
+.module-area {
+  width: 40%;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
 }
 </style>

@@ -2,7 +2,7 @@
 type IconType = {
   prefix?: string
   name: string
-  color: string
+  color?: string
   width: string
   height: string
 }

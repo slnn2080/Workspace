@@ -1,12 +1,39 @@
 <script setup lang="ts">
 import { User, Lock } from '@element-plus/icons-vue'
-import { reactive, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import useLoginStore from '@/store/loginStore'
 import { useRouter } from 'vue-router'
 import { ElNotification } from 'element-plus'
 
 defineOptions({
-  name: 'Login'
+  name: 'Login',
+  // beforeRouteEnter(to, from, next) {
+  //   window.addEventListener('load', (e) => {
+  //     history.pushState('', '', document.URL)
+  //   })
+  //   next()
+  // },
+  beforeRouteLeave(to, from, next) {
+    console.log('beforeRouteLeave')
+    console.log(to)
+    console.log(from)
+    next()
+  }
+})
+
+onMounted(() => {
+  window.addEventListener('pageshow', (e) => {
+    console.log('pageshow')
+  })
+  window.addEventListener('pagehide', (e) => {
+    console.log('pagehide')
+  })
+  window.addEventListener('popstate', (e) => {
+    console.log('popstate')
+  })
+  window.addEventListener('beforeunload', (e) => {
+    console.log('beforeunload')
+  })
 })
 
 // 获取 router

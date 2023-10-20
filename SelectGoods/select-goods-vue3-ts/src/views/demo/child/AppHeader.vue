@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { reactive } from 'vue'
+import { Menu, ArrowDown } from '@element-plus/icons-vue'
 import { getAssetsResource } from '@/utils/util.ts'
 import Breadcrumb from './Breadcrumb.vue'
-import { Menu, ArrowDown } from '@element-plus/icons-vue'
+import ModulePanel from './ModulePanel.vue'
 
 defineOptions({
   name: 'AppHeader'
@@ -15,6 +16,9 @@ const breadcrumbs = reactive<string[]>([
   'list',
   'detail'
 ])
+
+const top = () => {}
+const logout = () => {}
 </script>
 
 <template>
@@ -63,7 +67,9 @@ const breadcrumbs = reactive<string[]>([
             <el-icon><Menu /></el-icon>
           </el-button>
           <template #dropdown>
-            <el-card class="header__right__abbreviate__card"> Module </el-card>
+            <div class="header__right__abbreviate__card">
+              <ModulePanel />
+            </div>
           </template>
         </el-dropdown>
       </div>
@@ -77,7 +83,7 @@ const breadcrumbs = reactive<string[]>([
           </el-button>
           <template #dropdown>
             <el-dropdown-menu class="header__right__logout__menu">
-              <el-dropdown-item @click="logout">トップ</el-dropdown-item>
+              <el-dropdown-item @click="top">トップ</el-dropdown-item>
               <el-dropdown-item @click="logout">ログアウト</el-dropdown-item>
             </el-dropdown-menu>
           </template>
@@ -196,7 +202,7 @@ const breadcrumbs = reactive<string[]>([
       }
 
       &__card {
-        // width: 350px;
+        width: 300px;
       }
     }
 
