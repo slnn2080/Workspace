@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import AppHeader from './child/AppHeader.vue'
-import AppSideBar from './child/AppSideBar.vue'
-import AppMain from './child/AppMain.vue'
+import GwesAppHeader from './child/GwesHeader.vue'
+import GwesAppSideBar from './child/GwesAppSideBar.vue'
+import GwesAppMain from './child/GwesMain.vue'
 import ModulePanel from './child/ModulePanel.vue'
 
 defineOptions({
@@ -13,14 +13,14 @@ defineOptions({
   <div class="common-layout">
     <el-container>
       <el-header height="64px">
-        <AppHeader />
+        <GwesAppHeader />
       </el-header>
       <el-container>
         <el-aside width="300px">
-          <AppSideBar />
+          <GwesAppSideBar />
         </el-aside>
         <el-main>
-          <AppMain />
+          <GwesAppMain />
         </el-main>
       </el-container>
     </el-container>

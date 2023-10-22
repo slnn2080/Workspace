@@ -23,7 +23,10 @@ const iconSize = computed(() => {
 
 const modules = ['pa', 'wa', 'ia', 'so', 'ro', 'me', 'dc', 'bm', 'wf']
 
-const modulesTipLaguage = {
+type modulesTipLaguageType = {
+  [_: string]: string
+}
+const modulesTipLaguage: modulesTipLaguageType = {
   pa: 'Progress Analyzer',
   wa: 'Workload Analyzer',
   ia: 'Inventory Analyzer',

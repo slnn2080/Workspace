@@ -1,0 +1,3 @@
+@function fs($px, $base-fs: 100) {
+  @return #{$px div $base-fs}rem
+}

@@ -5,6 +5,10 @@ import { createPinia } from 'pinia'
 
 import ElementPlus from 'element-plus'
 import 'element-plus/dist/index.css'
+
+// 暗黑模式
+import 'element-plus/theme-chalk/dark/css-vars.css'
+
 import '@/styles/index.scss'
 
 // svg相关

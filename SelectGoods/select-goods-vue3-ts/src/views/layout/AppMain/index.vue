@@ -1,11 +1,13 @@
 <script setup lang="ts">
 defineOptions({
-  name: 'Home'
+  name: 'AppMain'
 })
 </script>
 
 <template>
-  <div>Home</div>
+  <div class="main__container">
+    <router-view></router-view>
+  </div>
 </template>
 
 <style scoped lang="scss"></style>

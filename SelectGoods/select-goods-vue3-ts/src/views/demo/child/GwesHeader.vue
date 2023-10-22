@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { reactive } from 'vue'
-import { Menu, ArrowDown } from '@element-plus/icons-vue'
+import { ref, reactive } from 'vue'
+import { Menu, ArrowDown, Check, Close } from '@element-plus/icons-vue'
 import { getAssetsResource } from '@/utils/util.ts'
-import Breadcrumb from './Breadcrumb.vue'
+import GwesBreadcrumb from './GwesBreadcrumb.vue'
 import ModulePanel from './ModulePanel.vue'
+import { useDark, useToggle } from '@vueuse/core'
 
 defineOptions({
   name: 'AppHeader'
@@ -16,6 +17,31 @@ const breadcrumbs = reactive<string[]>([
   'list',
   'detail'
 ])
+
+const isDark = useDark()
+const toggleDark = useToggle(isDark)
+
+const color = ref('rgba(255, 69, 0, 0.68)')
+const predefineColors = ref([
+  '#ff4500',
+  '#ff8c00',
+  '#ffd700',
+  '#90ee90',
+  '#00ced1',
+  '#1e90ff',
+  '#c71585',
+  'rgba(255, 69, 0, 0.68)',
+  'rgb(255, 120, 0)',
+  'hsv(51, 100, 98)',
+  'hsva(120, 40, 94, 0.5)',
+  'hsl(181, 100%, 37%)',
+  'hsla(209, 100%, 56%, 0.73)',
+  '#c7158577'
+])
+const setTheme = () => {
+  const html = document.documentElement
+  html.style.setProperty('--el-color-danger', color.value)
+}
 
 const top = () => {}
 const logout = () => {}
@@ -36,10 +62,18 @@ const logout = () => {}
       </div>
       <!-- breadcrumb -->
       <div class="header__left__breadcrumb">
-        <Breadcrumb :list="breadcrumbs" fs="18px" />
+        <GwesBreadcrumb :list="breadcrumbs" fs="18px" />
       </div>
     </div>
     <div class="header__right">
+      <div class="header__right__theme">
+        <el-color-picker
+          v-model="color"
+          show-alpha
+          :predefine="predefineColors"
+          @change="setTheme"
+        />
+      </div>
       <!-- error area -->
       <div class="header__right__abnormal">
         <el-dropdown trigger="click" size="large">
@@ -85,6 +119,9 @@ const logout = () => {}
             <el-dropdown-menu class="header__right__logout__menu">
               <el-dropdown-item @click="top">トップ</el-dropdown-item>
               <el-dropdown-item @click="logout">ログアウト</el-dropdown-item>
+              <el-dropdown-item @click="toggleDark()"
+                >Change Dark</el-dropdown-item
+              >
             </el-dropdown-menu>
           </template>
         </el-dropdown>
@@ -153,6 +190,13 @@ const logout = () => {}
   }
   &__right {
     display: flex;
+
+    &__theme {
+      height: 100%;
+      display: flex;
+      align-items: center;
+      padding-right: 30px;
+    }
 
     &__abnormal {
       display: flex;

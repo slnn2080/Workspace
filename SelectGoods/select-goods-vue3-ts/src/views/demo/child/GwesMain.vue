@@ -1,9 +1,9 @@
 <script setup lang="ts">
-defineOptions({ name: 'AppMain' })
+defineOptions({ name: 'GwesAppMain' })
 </script>
 
 <template>
-  <div>AppMain</div>
+  <div>GwesAppMain</div>
 </template>
 
 <style scoped lang="scss"></style>

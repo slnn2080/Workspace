@@ -2,9 +2,15 @@
 import MenuItem from './MenuItem.vue'
 // import menuList from '../../../assets/json/menuList'
 defineOptions({
-  name: 'AppSideBar'
+  name: 'GwesAppSideBar'
 })
-
+/*
+function component() {
+  return Promise.resolve().then(function () {
+    return (0, _interopRequireWildcard2["default"])(__webpack_require__(/*! @/blank/index / "./src/blank/index.vue"));
+  })
+}
+*/
 const data = [
   {
     moduleCode: 'pa',

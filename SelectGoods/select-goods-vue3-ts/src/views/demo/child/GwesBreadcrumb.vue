@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ArrowRight } from '@element-plus/icons-vue'
 defineOptions({
-  name: 'Breadcrumb'
+  name: 'GwesBreadcrumb'
 })
 
 type propsType = {

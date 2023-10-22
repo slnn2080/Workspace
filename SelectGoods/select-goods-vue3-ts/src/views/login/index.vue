@@ -4,36 +4,12 @@ import { onMounted, reactive, ref } from 'vue'
 import useLoginStore from '@/store/loginStore'
 import { useRouter } from 'vue-router'
 import { ElNotification } from 'element-plus'
+import type { FormInstance } from 'element-plus'
+
+import { getTimeRange } from '@/utils/util'
 
 defineOptions({
-  name: 'Login',
-  // beforeRouteEnter(to, from, next) {
-  //   window.addEventListener('load', (e) => {
-  //     history.pushState('', '', document.URL)
-  //   })
-  //   next()
-  // },
-  beforeRouteLeave(to, from, next) {
-    console.log('beforeRouteLeave')
-    console.log(to)
-    console.log(from)
-    next()
-  }
-})
-
-onMounted(() => {
-  window.addEventListener('pageshow', (e) => {
-    console.log('pageshow')
-  })
-  window.addEventListener('pagehide', (e) => {
-    console.log('pagehide')
-  })
-  window.addEventListener('popstate', (e) => {
-    console.log('popstate')
-  })
-  window.addEventListener('beforeunload', (e) => {
-    console.log('beforeunload')
-  })
+  name: 'Login'
 })
 
 // 获取 router
@@ -49,6 +25,22 @@ const loginForm = reactive<loginFormType>({
   password: '111111'
 })
 
+// 表单校验的规则对象
+const loginFormRules = {
+  // 数组中每一个对象 即为一条验证规则
+  username: [
+    { required: true, message: '用户名不能为空', tigger: 'blur' },
+    { min: 6, message: '用户名长度不能小于6位', trigger: 'blur' }
+  ],
+  password: [
+    { required: true, message: '密码不能为空', tigger: 'blur' },
+    { min: 6, max: 15, message: '密码长度不能小于6位', trigger: 'blur' }
+  ]
+}
+
+// 获取表单实例节点
+const loginFormRef = ref<FormInstance>()
+
 // 定义变量 控制 el-button 的loading功能
 let loadingFlag = ref(false)
 
@@ -60,6 +52,9 @@ const login = async () => {
   // 点击 登录 回调 展示 el-button 的loading效果
   loadingFlag.value = true
 
+  // 保证全部表单项检验通过后 再发起请求
+  await loginFormRef.value?.validate()
+
   // await: 也不全是拿异步的数据, 它本身最重要的是拿promise中成功的结果
   try {
     // 1. 通知 store 发起登录请求, 调用store中的方法 (action中的)
@@ -69,7 +64,8 @@ const login = async () => {
     // 展示提示信息
     ElNotification({
       type: 'success',
-      message: '登录成功'
+      title: `Hello, ${getTimeRange()}好`,
+      message: '欢迎回来'
     })
   } catch (err) {
     // 请求失败: 弹出登录失败信息
@@ -96,15 +92,20 @@ const login = async () => {
             <h2>Hello</h2>
             <h3>欢迎来到 甄选平台</h3>
           </div>
-          <el-form size="large">
+          <el-form
+            ref="loginFormRef"
+            size="large"
+            :model="loginForm"
+            :rules="loginFormRules"
+          >
             <!-- 每个表单项应该放在一个 表单容器中 -->
-            <el-form-item>
+            <el-form-item prop="username">
               <el-input
                 v-model="loginForm.username"
                 :prefix-icon="User"
               ></el-input>
             </el-form-item>
-            <el-form-item>
+            <el-form-item prop="password">
               <el-input
                 v-model="loginForm.password"
                 type="password"
