@@ -1,8 +1,13 @@
 <script setup lang="ts">
-import { RouteRecordRaw } from 'vue-router'
+import { useRouter } from 'vue-router'
+import type { RouteRecordRaw } from 'vue-router'
+import type { ElMenuItem } from 'element-plus'
+
 defineOptions({
   name: 'AppMenu'
 })
+
+const router = useRouter()
 
 type propsType = {
   menuList: RouteRecordRaw[]
@@ -12,6 +17,11 @@ type propsType = {
 const props = withDefaults(defineProps<propsType>(), {
   menuList: () => [] as RouteRecordRaw[]
 })
+
+// 路由跳转
+const goToRoute = (to) => {
+  router.push(to.index)
+}
 </script>
 
 <template>
@@ -19,11 +29,15 @@ const props = withDefaults(defineProps<propsType>(), {
   <template v-for="item in props.menuList" :key="item.path">
     <!-- 递归出口1: 菜单项没有子菜单 使用 el-menu-item -->
     <template v-if="!item.children">
-      <el-menu-item v-if="!item.meta?.hidden" :index="item.path">
+      <el-menu-item
+        v-if="!item.meta?.hidden"
+        :index="item.path"
+        @click="goToRoute"
+      >
+        <el-icon>
+          <component :is="item.meta?.icon" />
+        </el-icon>
         <template #title>
-          <el-icon>
-            <component :is="item.meta?.icon" />
-          </el-icon>
           <span>{{ item.meta?.title }}</span>
         </template>
       </el-menu-item>
@@ -34,11 +48,12 @@ const props = withDefaults(defineProps<propsType>(), {
       <el-menu-item
         v-if="!item.children[0].meta?.hidden"
         :index="item.children[0].path"
+        @click="goToRoute"
       >
+        <el-icon>
+          <component :is="item.children[0].meta?.icon" />
+        </el-icon>
         <template #title>
-          <el-icon>
-            <component :is="item.children[0].meta?.icon" />
-          </el-icon>
           <span>{{ item.children[0].meta?.title }}</span>
         </template>
       </el-menu-item>
@@ -59,4 +74,18 @@ const props = withDefaults(defineProps<propsType>(), {
     </el-sub-menu>
   </template>
 </template>
-<style scoped lang="scss"></style>
+<style scoped lang="scss">
+.el-menu-item,
+.el-sub-menu {
+  --el-menu-item-font-size: 14px;
+  --el-menu-item-height: 60px;
+  --el-menu-sub-item-height: 60px;
+}
+
+.menu {
+  &__sub-menu {
+    // display: none;
+    background-color: red;
+  }
+}
+</style>

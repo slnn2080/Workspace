@@ -45,13 +45,15 @@ const setTheme = () => {
 
 const top = () => {}
 const logout = () => {}
+
+const loginStatus = ref(true)
 </script>
 
 <template>
   <div class="header__wrapper">
     <div class="header__left">
       <!-- Logo -->
-      <div class="header__left__logo">
+      <div v-if="loginStatus" class="header__left__logo">
         <el-button class="header__left__logo__btn">
           <img :src="lightLogoUrl" />
         </el-button>
@@ -61,12 +63,13 @@ const logout = () => {}
         <el-button class="header__left__gwes__btn"> GWES </el-button>
       </div>
       <!-- breadcrumb -->
-      <div class="header__left__breadcrumb">
-        <GwesBreadcrumb :list="breadcrumbs" fs="18px" />
+      <div v-if="loginStatus" class="header__left__breadcrumb">
+        <GwesBreadcrumb :list="breadcrumbs" fs="14px" />
       </div>
     </div>
     <div class="header__right">
-      <div class="header__right__theme">
+      <div v-if="false" class="header__right__theme">
+        <!-- color picker -->
         <el-color-picker
           v-model="color"
           show-alpha
@@ -75,7 +78,7 @@ const logout = () => {}
         />
       </div>
       <!-- error area -->
-      <div class="header__right__abnormal">
+      <div v-if="false" class="header__right__abnormal">
         <el-dropdown trigger="click" size="large">
           <el-button type="danger" class="header__right__abnormal__btn">
             状態異常発生中
@@ -95,11 +98,9 @@ const logout = () => {}
         <span>劉開発テスト（[mm]Optimezer動作確認センター）</span>
       </div>
       <!-- ... area header__abbreviate__menu -->
-      <div class="header__right__abbreviate">
+      <div v-if="loginStatus" class="header__right__abbreviate">
         <el-dropdown trigger="click" size="large">
-          <el-button type="info" class="header__right__abbreviate__btn">
-            <el-icon><Menu /></el-icon>
-          </el-button>
+          <el-icon class="header__right__abbreviate__btn"><Menu /></el-icon>
           <template #dropdown>
             <div class="header__right__abbreviate__card">
               <ModulePanel />
@@ -231,18 +232,27 @@ const logout = () => {}
     &__info {
       display: flex;
       align-items: center;
-      padding-right: 30px;
+      padding-right: 10px;
+      font-size: 14px;
     }
 
     &__abbreviate {
       display: flex;
       align-items: center;
-      padding-right: 30px;
+      // padding-right: 10px;
 
       &__btn {
-        @include resetBtn;
-        font-size: 1.5em;
-        height: 40px;
+        // el-button 的样式
+        // @include resetBtn;
+        // font-size: 1.5em;
+        // height: 40px;
+
+        // 只是图标的样式
+        font-size: 30px;
+
+        &:hover {
+          cursor: pointer;
+        }
       }
 
       &__card {

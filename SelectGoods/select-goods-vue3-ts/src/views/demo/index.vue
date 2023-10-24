@@ -1,8 +1,8 @@
-<script setup lang="ts">
-import GwesAppHeader from './child/GwesHeader.vue'
-import GwesAppSideBar from './child/GwesAppSideBar.vue'
-import GwesAppMain from './child/GwesMain.vue'
-import ModulePanel from './child/ModulePanel.vue'
+<!-- <script setup lang="ts">
+import GwesAppHeader from './components/GwesHeader.vue'
+import GwesAppSideBar from './components/GwesAppSideBar.vue'
+import GwesAppMain from './components/GwesMain.vue'
+import ModulePanel from './components/ModulePanel.vue'
 
 defineOptions({
   name: 'Layout'
@@ -24,7 +24,7 @@ defineOptions({
         </el-main>
       </el-container>
     </el-container>
-    <div class="module-area" v-if="false">
+    <div class="module-area" v-if="true">
       <ModulePanel />
     </div>
   </div>
@@ -36,8 +36,7 @@ defineOptions({
 }
 
 .el-header,
-.el-aside,
-.el-main {
+.el-aside {
   padding: 0;
   margin: 0;
 }
@@ -49,4 +48,4 @@ defineOptions({
   top: 50%;
   transform: translate(-50%, -50%);
 }
-</style>
+</style> -->

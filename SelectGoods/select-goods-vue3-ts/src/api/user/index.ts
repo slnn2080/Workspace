@@ -1,20 +1,28 @@
 import service from '@/utils/request'
-import type { loginParamType, loginResType, userInfoType } from './type'
+import type { loginParamType, commonResType, userInfoType } from './type'
 
 // 统一管理接口
 enum API {
-  LOGIN_URL = '/user/login',
-  USER_INFO_URL = '/user/info'
+  LOGIN_URL = '/admin/acl/index/login',
+  LOGOUT_URL = '/admin/acl/index/logout',
+  USER_INFO_URL = '/admin/acl/index/info',
+  MENU = '/admin/acl/index/menu'
 }
 
-// 暴露 登录 的接口方法
-type loginFnType = (data: loginParamType) => Promise<loginResType>
+// 登录:
+type loginFnType = (data: loginParamType) => Promise<commonResType<string>>
 export const loginApi: loginFnType = (data) => {
   return service.post(API.LOGIN_URL, data)
 }
 
-// 暴露 获取用户信息 的接口方法
-type getUserInfoFnType = () => Promise<userInfoType>
+// 退出登录: 没有参数, 但是需要携带token
+type logoutResType = () => Promise<commonResType<null>>
+export const logoutApi: logoutResType = () => {
+  return service.post(API.LOGOUT_URL)
+}
+
+// 获取用户信息:
+type getUserInfoFnType = () => Promise<commonResType<userInfoType>>
 export const getUserInfoApi: getUserInfoFnType = () => {
-  return service.get('/user/info')
+  return service.get(API.USER_INFO_URL)
 }

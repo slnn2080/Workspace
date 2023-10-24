@@ -1,10 +1,21 @@
 <script setup lang="ts">
+import useSettingStore from '@/store/settingStore'
+import { computed } from 'vue'
+
 import AppHeader from './AppHeader/index.vue'
 import AppMain from './AppMain/index.vue'
 import AppSideBar from './AppSideBar/index.vue'
 
 defineOptions({
   name: 'Layout'
+})
+
+// 引入 setting store
+const settingStore = useSettingStore()
+
+// 动态设置 el-aside 组件的类型
+const asideName = computed(() => {
+  return settingStore.isCollapsed ? 'is-collapsed' : ''
 })
 </script>
 
@@ -15,7 +26,7 @@ defineOptions({
         <AppHeader />
       </el-header>
       <el-container class="layout__container__sub">
-        <el-aside>
+        <el-aside :class="asideName">
           <AppSideBar />
         </el-aside>
         <el-main>
@@ -53,9 +64,21 @@ defineOptions({
       height: $base-topbar-height;
     }
 
+    // 设置过渡效果 + 设置折叠后的组件宽度
     .el-aside {
+      transition: width 0.3s;
+      -webkit-transition: width 0.3s;
+      -moz-transition: width 0.3s;
+      -webkit-transition: width 0.3s;
+      -o-transition: width 0.3s;
+
       width: $base-menu-width;
       background: $base-menu-bg;
+      // transition: all 0.5s;
+
+      &.is-collapsed {
+        width: $base-menu-width-collapsed;
+      }
     }
   }
 }

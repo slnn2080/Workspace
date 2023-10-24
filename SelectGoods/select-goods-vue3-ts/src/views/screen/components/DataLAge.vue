@@ -1,9 +1,11 @@
 <script setup lang="ts">
-defineOptions({ name: 'GwesAppMain' })
+defineOptions({
+  name: 'DataLAge'
+})
 </script>
 
 <template>
-  <div>GwesAppMain</div>
+  <div>DataLAge</div>
 </template>
 
 <style scoped lang="scss"></style>

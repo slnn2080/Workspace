@@ -27,5 +27,6 @@ withDefaults(defineProps<propsType>(), {
 <style scoped lang="scss">
 .el-breadcrumb__item {
   font-size: v-bind(fs);
+  line-height: 1.3;
 }
 </style>

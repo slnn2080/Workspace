@@ -16,7 +16,7 @@ export const constantRoutes = [
     name: 'Layout',
     component: () => import('@/views/layout/index.vue'),
     meta: {
-      title: '',
+      title: '首页',
       hidden: false,
       icon: ''
     },
@@ -39,9 +39,9 @@ export const constantRoutes = [
     name: '404',
     component: () => import('@/views/404/index.vue'),
     meta: {
-      title: '404',
+      title: '',
       hidden: true,
-      icon: 'DocumentDelete'
+      icon: ''
     }
   },
   {
@@ -60,21 +60,86 @@ export const constantRoutes = [
     name: 'Any',
     component: () => import('@/views/404/index.vue'),
     meta: {
-      title: '任意路由',
+      title: '',
       hidden: true,
-      icon: 'DataLine'
+      icon: ''
     }
   },
   // gwes demo
-  // {
-  //   path: '/demo',
-  //   name: 'Demo',
-  //   component: () => import('@/views/demo/index.vue')
-  // },
+  {
+    path: '/gwes',
+    name: 'Demo',
+    component: () => import('@/views/demo/layout/index.vue'),
+    meta: {
+      title: 'Demo',
+      icon: '',
+      hidden: true
+    }
+  },
+  {
+    path: '/gwes_login',
+    name: 'GwesLogin',
+    component: () => import('@/views/demo/login/index.vue'),
+    meta: {
+      title: 'Login',
+      icon: '',
+      hidden: true
+    }
+  },
+  {
+    path: '/master',
+    component: () => import('@/views/demo/layout/index.vue'),
+    meta: {
+      title: 'Master',
+      icon: '',
+      hidden: true
+    },
+    children: [
+      {
+        path: '/master/worker_master',
+        component: () => import('@/views/demo/wokerMaster/index.vue'),
+        meta: {
+          title: 'WorkerMaster',
+          icon: '',
+          hidden: true
+        }
+      }
+    ]
+  },
+  {
+    path: '/gwes_settings',
+    name: 'Settings',
+    component: () => import('@/views/demo/layout/index.vue'),
+    meta: {
+      title: 'Setting',
+      icon: '',
+      hidden: true
+    },
+    children: [
+      {
+        path: '/gwes_settings/setting',
+        component: () => import('@/views/demo/setting/Display.vue'),
+        meta: {
+          title: 'Dispaly',
+          icon: '',
+          hidden: true
+        }
+      },
+      {
+        path: '/gwes_settings/switch_center',
+        component: () => import('@/views/demo/setting/SwitchCenter.vue'),
+        meta: {
+          title: 'SwitchCenter',
+          icon: '',
+          hidden: true
+        }
+      }
+    ]
+  },
   // 权限管理路由
   {
     path: '/acl',
-    // component 使用 layout中的路由出口
+    // 权限管理 一级路由 要使用 layout中的路由出口, 也就是说当访问 /acl 的时候展示的是 layout组件 这样它的children里面的二级路由就可以使用 layout/main中的路由出口了
     component: () => import('@/views/layout/index.vue'),
     name: 'Acl',
     meta: {
@@ -84,7 +149,7 @@ export const constantRoutes = [
     redirect: '/acl/user',
     children: [
       {
-        path: 'user',
+        path: '/acl/user',
         component: () => import('@/views/acl/user/index.vue'),
         name: 'User',
         meta: {
@@ -93,7 +158,7 @@ export const constantRoutes = [
         }
       },
       {
-        path: 'role',
+        path: '/acl/role',
         component: () => import('@/views/acl/role/index.vue'),
         name: 'Role',
         meta: {
@@ -102,7 +167,7 @@ export const constantRoutes = [
         }
       },
       {
-        path: 'permission',
+        path: '/acl/permission',
         component: () => import('@/views/acl/permission/index.vue'),
         name: 'Permission',
         meta: {
@@ -123,7 +188,7 @@ export const constantRoutes = [
     redirect: '/product/trademark',
     children: [
       {
-        path: 'trademark',
+        path: '/product/trademark',
         component: () => import('@/views/product/trademark/index.vue'),
         name: 'Trademark',
         meta: {
@@ -132,7 +197,7 @@ export const constantRoutes = [
         }
       },
       {
-        path: 'attr',
+        path: '/product/attr',
         component: () => import('@/views/product/attr/index.vue'),
         name: 'Attr',
         meta: {
@@ -141,7 +206,7 @@ export const constantRoutes = [
         }
       },
       {
-        path: 'spu',
+        path: '/product/spu',
         component: () => import('@/views/product/spu/index.vue'),
         name: 'Spu',
         meta: {
@@ -150,7 +215,7 @@ export const constantRoutes = [
         }
       },
       {
-        path: 'sku',
+        path: '/product/sku',
         component: () => import('@/views/product/sku/index.vue'),
         name: 'Sku',
         meta: {

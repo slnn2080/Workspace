@@ -12,6 +12,10 @@ export const GET_TOKEN = (): string | null => {
   return localStorage.getItem('token') as string
 }
 
+export const REMOVE_TOKEN = (): void => {
+  localStorage.removeItem('token')
+}
+
 // 判断 当前是哪个时间段
 export function getTimeRange(): string {
   const date = new Date()

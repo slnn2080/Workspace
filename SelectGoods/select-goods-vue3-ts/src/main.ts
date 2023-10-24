@@ -16,12 +16,15 @@ import 'virtual:svg-icons-register'
 // 全局组件
 import gloablComponent from './components/index'
 
+// 引入 路由鉴权 的文件 permission
+import './permission'
+
 // pinia 相关
 const pinia = createPinia()
 
 createApp(App)
-  .use(router)
   .use(pinia)
+  .use(router)
   .use(ElementPlus)
   .use(gloablComponent)
   .mount('#app')

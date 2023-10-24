@@ -20,8 +20,10 @@ defineOptions({
 @use '@/styles/utils' as g;
 .logo {
   &__container {
+    width: 260px;
     height: 100%;
     display: flex;
+    border-right: 1px solid #ddd;
   }
 
   &__img {
