@@ -65,77 +65,99 @@ export const constantRoutes = [
       icon: ''
     }
   },
-  // gwes demo
-  {
-    path: '/gwes',
-    name: 'Demo',
-    component: () => import('@/views/demo/layout/index.vue'),
-    meta: {
-      title: 'Demo',
-      icon: '',
-      hidden: true
-    }
-  },
-  {
-    path: '/gwes_login',
-    name: 'GwesLogin',
-    component: () => import('@/views/demo/login/index.vue'),
-    meta: {
-      title: 'Login',
-      icon: '',
-      hidden: true
-    }
-  },
-  {
-    path: '/master',
-    component: () => import('@/views/demo/layout/index.vue'),
-    meta: {
-      title: 'Master',
-      icon: '',
-      hidden: true
-    },
-    children: [
-      {
-        path: '/master/worker_master',
-        component: () => import('@/views/demo/wokerMaster/index.vue'),
-        meta: {
-          title: 'WorkerMaster',
-          icon: '',
-          hidden: true
-        }
-      }
-    ]
-  },
-  {
-    path: '/gwes_settings',
-    name: 'Settings',
-    component: () => import('@/views/demo/layout/index.vue'),
-    meta: {
-      title: 'Setting',
-      icon: '',
-      hidden: true
-    },
-    children: [
-      {
-        path: '/gwes_settings/setting',
-        component: () => import('@/views/demo/setting/Display.vue'),
-        meta: {
-          title: 'Dispaly',
-          icon: '',
-          hidden: true
-        }
-      },
-      {
-        path: '/gwes_settings/switch_center',
-        component: () => import('@/views/demo/setting/SwitchCenter.vue'),
-        meta: {
-          title: 'SwitchCenter',
-          icon: '',
-          hidden: true
-        }
-      }
-    ]
-  },
+  // ----- gwes demo start -----
+  // {
+  //   path: '/gwes',
+  //   name: 'Demo',
+  //   component: () => import('@/views/demo/layout/index.vue'),
+  //   meta: {
+  //     title: 'Demo',
+  //     icon: '',
+  //     hidden: true
+  //   }
+  // },
+  // {
+  //   path: '/gwes_login',
+  //   name: 'GwesLogin',
+  //   component: () => import('@/views/demo/login/index.vue'),
+  //   meta: {
+  //     title: 'Login',
+  //     icon: '',
+  //     hidden: true
+  //   }
+  // },
+  // {
+  //   path: '/master',
+  //   component: () => import('@/views/demo/layout/index.vue'),
+  //   meta: {
+  //     title: 'Master',
+  //     icon: '',
+  //     hidden: true
+  //   },
+  //   children: [
+  //     {
+  //       path: '/master/worker_master',
+  //       component: () => import('@/views/demo/wokerMaster/index.vue'),
+  //       meta: {
+  //         title: 'WorkerMaster',
+  //         icon: '',
+  //         hidden: true
+  //       }
+  //     }
+  //   ]
+  // },
+  // {
+  //   path: '/master',
+  //   component: () => import('@/views/demo/layout/index.vue'),
+  //   meta: {
+  //     title: 'Master',
+  //     icon: '',
+  //     hidden: true
+  //   },
+  //   children: [
+  //     {
+  //       path: '/master/woker_throughput_monitor',
+  //       component: () =>
+  //         import('@/views/demo/wokerThroughputMonitor/index.vue'),
+  //       meta: {
+  //         title: 'WokerThroughputMonitor',
+  //         icon: '',
+  //         hidden: true
+  //       }
+  //     }
+  //   ]
+  // },
+  // {
+  //   path: '/gwes_settings',
+  //   name: 'Settings',
+  //   component: () => import('@/views/demo/layout/index.vue'),
+  //   meta: {
+  //     title: 'Setting',
+  //     icon: '',
+  //     hidden: true
+  //   },
+  //   children: [
+  //     {
+  //       path: '/gwes_settings/setting',
+  //       component: () => import('@/views/demo/setting/Display.vue'),
+  //       meta: {
+  //         title: 'Dispaly',
+  //         icon: '',
+  //         hidden: true
+  //       }
+  //     },
+  //     {
+  //       path: '/gwes_settings/switch_center',
+  //       component: () => import('@/views/demo/setting/SwitchCenter.vue'),
+  //       meta: {
+  //         title: 'SwitchCenter',
+  //         icon: '',
+  //         hidden: true
+  //       }
+  //     }
+  //   ]
+  // },
+  // ----- gwes demo end -----
   // 权限管理路由
   {
     path: '/acl',

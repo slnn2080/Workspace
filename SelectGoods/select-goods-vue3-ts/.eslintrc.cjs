@@ -54,6 +54,7 @@ module.exports = {
     // eslint (https://zh-hans.eslint.org/docs/latest/use/configure/rules/)
     // typescript (https://typescript-eslint.io/rules/)
     // eslint-plugin-vue (https://eslint.vuejs.org/rules/)
-    'vue/multi-word-component-names': 0
+    'vue/multi-word-component-names': 0,
+    '@typescript-eslint/no-explicit-any': 0
   }
 }
