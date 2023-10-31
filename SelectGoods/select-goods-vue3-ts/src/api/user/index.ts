@@ -1,5 +1,6 @@
 import service from '@/utils/request'
-import type { loginParamType, commonResType, userInfoType } from './type'
+import { commonResType } from '@/api/commonTypes'
+import type { loginParamType, userInfoType } from './type'
 
 // 统一管理接口
 enum API {

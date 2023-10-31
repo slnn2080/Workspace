@@ -6,7 +6,7 @@ import useUserStore from '@/store/userStore'
 const service = axios.create({
   // baseURL: /api
   baseURL: import.meta.env.VITE_APP_BASE_API,
-  timeout: 5000
+  timeout: 50000
 })
 
 // 2. 添加请求拦截器
@@ -29,6 +29,7 @@ service.interceptors.response.use(
     return res.data
   },
   (err) => {
+    console.log('response - err: ', err)
     // 一般处理http的网络错误
     const status = err.response.status
     let errorMsg = ''

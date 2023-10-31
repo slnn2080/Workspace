@@ -24,12 +24,4 @@ type trademarkResType = {
   pages?: number
 }
 
-// 品牌管理: commonResult, data 不一样
-type commonTrademarkResType<T> = {
-  code: number
-  message: string
-  ok: boolean
-  data: T
-}
-
-export type { commonTrademarkResType, trademarkItem, trademarkResType }
+export type { trademarkItem, trademarkResType }
