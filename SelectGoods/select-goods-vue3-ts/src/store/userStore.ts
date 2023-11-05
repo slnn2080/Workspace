@@ -22,7 +22,7 @@ const useUserStore = defineStore('login', {
     }
   },
   actions: {
-    // 处理用户登录的方法
+    // 处理用户登录的方法,
     async login(loginForm: loginParamType) {
       const res = await loginApi(loginForm)
       // 登录成功: 200 - token 存储token

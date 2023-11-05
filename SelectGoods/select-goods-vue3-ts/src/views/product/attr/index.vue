@@ -177,7 +177,6 @@ const saveAttrHandler = async () => {
 
 // 删除属性按钮的回调
 const deleteAttrHandler = async (row: listItemType) => {
-  console.log(row)
   const res = await deleteAttrApi(row.id as number)
   if (res.code === 200) {
     ElMessage({
@@ -221,7 +220,6 @@ const changeShowMode = (row: attrValueItemType, index: number): void => {
   row.isEdited = false
 }
 const changeEditMode = (row: attrValueItemType, index: number): void => {
-  console.log(index)
   row.isEdited = true
 
   // 响应式数据发生变化 获取更新后的dom
