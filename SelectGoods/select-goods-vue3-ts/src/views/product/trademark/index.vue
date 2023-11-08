@@ -326,7 +326,7 @@ const deleteTrademark = async (id: number) => {
                 cancel-button-text="No"
                 icon="Delete"
                 icon-color="#c2185b"
-                hide-after="100"
+                :hide-after="100"
                 :title="`您确定要删除 ${row.tmName} 么?`"
                 @confirm="deleteTrademark(row.id)"
               >

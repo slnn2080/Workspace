@@ -74,11 +74,47 @@ type attrItem = {
   name: string
 }
 
+// sku: 平台属性
+type attrItemType = {
+  attrId: number | string //平台属性的ID
+  valueId: number | string //属性值的ID
+}
+// sku: 销售属性
+type saleItemType = {
+  saleAttrId: number | string //属性ID
+  saleAttrValueId: number | string //属性值的ID
+}
+
+// 新增 sku
+type SkuDataType = {
+  // 三级分类的ID
+  category3Id: string | number
+  // 已有spuid, 往哪个已有的SPU上追加sku
+  spuId: string | number
+  //SPU品牌的ID
+  tmId: string | number
+  //sku名字
+  skuName: string
+  //sku价格
+  price: string | number
+  //sku重量
+  weight: string | number
+  //sku的描述
+  skuDesc: string
+  // 平台属性
+  skuAttrValueList?: attrItemType[]
+  skuSaleAttrValueList?: saleItemType[]
+  skuDefaultImg: string //sku图片地址
+}
+
 export type {
   spuSaleAttrValue,
   spuItemType,
   spuResType,
   spuImageItem,
   spuSaleAttrItem,
-  attrItem
+  attrItem,
+  SkuDataType,
+  attrItemType,
+  saleItemType
 }

@@ -35,7 +35,7 @@ export const getCategory3ListApi = (
   return service.get(`${API.GET_CATEGORY3}/${category3Id}`)
 }
 
-// 获取table数据
+// 获取 平台属性 table数据
 type getListType = (
   category1Id: number,
   category2Id: number,

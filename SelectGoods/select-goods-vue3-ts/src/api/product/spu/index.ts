@@ -6,7 +6,8 @@ import {
   spuImageItem,
   spuSaleAttrItem,
   attrItem,
-  spuItemType
+  spuItemType,
+  SkuDataType
 } from './type'
 
 enum API {
@@ -22,7 +23,13 @@ enum API {
   // 添加 spu 接口地址
   ADD_SPU = '/admin/product/saveSpuInfo',
   // 修改 spu 接口地址
-  UPDATE_SPU = '/admin/product/updateSpuInfo'
+  UPDATE_SPU = '/admin/product/updateSpuInfo',
+  // 给 spu 添加一个 sku 接口
+  ADD_SKU = '/admin/product/saveSkuInfo',
+  // 展示 sku 列表的接口 /{spuId}
+  GET_SKU_LIST = '/admin/product/findBySpuId',
+  // 删除 spu 列表的接口 /{spuId}
+  DELETE_SPU = '/admin/product/deleteSpu'
 }
 
 // 组件初挂载 展示列表数据的接口
@@ -83,4 +90,24 @@ export const saveOrUpdateSpuApi: saveOrUpdateSpuApiType = (spuData) => {
     // 添加操作
     return service.post(API.ADD_SPU, spuData)
   }
+}
+
+// 给 spu 添加一个 sku 接口
+type saveSkuApiType = (skuData: SkuDataType) => Promise<commonResType<null>>
+export const saveSkuApi: saveSkuApiType = (skuData) => {
+  return service.post(API.ADD_SKU, skuData)
+}
+
+// 获取 skuList 的接口
+type getSkuListApiType = (
+  spuId: number
+) => Promise<commonResType<SkuDataType[]>>
+export const getSkuListApi: getSkuListApiType = (spuId) => {
+  return service.get(`${API.GET_SKU_LIST}/${spuId}`)
+}
+
+// 删除 skuList 的接口
+type deleteSpuApiType = (spuId: number) => Promise<commonResType<null>>
+export const deleteSpuApi: deleteSpuApiType = (spuId) => {
+  return service.delete(`${API.DELETE_SPU}/${spuId}`)
 }
