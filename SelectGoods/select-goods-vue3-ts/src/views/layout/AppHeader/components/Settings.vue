@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import useSettingStore from '@/store/settingStore'
 import useUserStore from '@/store/userStore'
@@ -12,6 +13,32 @@ const route = useRoute()
 
 const settingStore = useSettingStore()
 const userStore = useUserStore()
+
+const predefineColors = ref([
+  '#ff4500',
+  '#ff8c00',
+  '#ffd700',
+  '#90ee90',
+  '#00ced1',
+  '#1e90ff',
+  '#c71585',
+  'rgba(255, 69, 0, 0.68)',
+  'rgb(255, 120, 0)',
+  'hsv(51, 100, 98)',
+  'hsva(120, 40, 94, 0.5)',
+  'hsl(181, 100%, 37%)',
+  'hsla(209, 100%, 56%, 0.73)',
+  '#c7158577'
+])
+
+const color = ref('')
+
+const setColor = () => {
+  const html = document.documentElement
+  // 控制台 去看html标签中有主题色的名
+  html.style.setProperty('--el-color-primary', color.value)
+}
+
 // 刷新按钮的回调
 const refreshHandler = () => {
   settingStore.isRefreshed = !settingStore.isRefreshed
@@ -38,6 +65,15 @@ const logoutHander = async () => {
     query: { redirect: route.path }
   })
 }
+
+// 收集 切换暗黑模式 的布尔值
+let dark = ref<boolean>(false)
+const changeDark = () => {
+  //获取HTML根节点
+  let html = document.documentElement
+  //判断HTML标签是否有类名dark
+  dark.value ? (html.className = 'dark') : (html.className = '')
+}
 </script>
 
 <template>
@@ -54,7 +90,40 @@ const logoutHander = async () => {
       circle
       @click="fullScreenHandler"
     ></el-button>
-    <el-button type="primary" icon="Setting" circle></el-button>
+    <el-popover
+      placement="bottom"
+      title="主题设置"
+      :width="300"
+      trigger="click"
+    >
+      <!-- 表单元素 -->
+      <el-form>
+        <el-form-item label="主题颜色">
+          <el-color-picker
+            @change="setColor"
+            v-model="color"
+            size="small"
+            show-alpha
+            :predefine="predefineColors"
+          />
+        </el-form-item>
+        <el-form-item label="暗黑模式">
+          <el-switch
+            @change="changeDark"
+            v-model="dark"
+            class="mt-2"
+            style="margin-left: 24px"
+            inline-prompt
+            active-icon="MoonNight"
+            inactive-icon="Sunny"
+          />
+        </el-form-item>
+      </el-form>
+      <!-- 外在体现的结构 -->
+      <template #reference>
+        <el-button type="primary" icon="Setting" circle></el-button>
+      </template>
+    </el-popover>
     <!-- 这里其实应该放 img 的 -->
     <el-button type="primary" icon="Avatar" circle></el-button>
     <!-- 退出登录的按钮 -->

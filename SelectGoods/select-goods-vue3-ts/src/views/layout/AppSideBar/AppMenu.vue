@@ -19,7 +19,7 @@ const props = withDefaults(defineProps<propsType>(), {
 })
 
 // 路由跳转
-const goToRoute = (to) => {
+const goToRoute = (to: any) => {
   router.push(to.index)
 }
 </script>

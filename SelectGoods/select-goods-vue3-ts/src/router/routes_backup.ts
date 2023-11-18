@@ -1,4 +1,3 @@
-// 常量路由
 export const constantRoutes = [
   {
     path: '/login',
@@ -54,11 +53,18 @@ export const constantRoutes = [
       title: '数据大屏',
       icon: 'Platform'
     }
-  }
-]
-
-// 异步路由
-export const asyncRoutes = [
+  },
+  // 当上面路由都没有匹配上的时候 我们访问的路由
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'Any',
+    component: () => import('@/views/404/index.vue'),
+    meta: {
+      title: '',
+      hidden: true,
+      icon: ''
+    }
+  },
   // ----- gwes demo start -----
   // {
   //   path: '/gwes',
@@ -240,20 +246,5 @@ export const asyncRoutes = [
         }
       }
     ]
-  }
-]
-
-// 任意路由
-export const anyRoutes = [
-  // 当上面路由都没有匹配上的时候 我们访问的路由
-  {
-    path: '/:pathMatch(.*)*',
-    name: 'Any',
-    component: () => import('@/views/404/index.vue'),
-    meta: {
-      title: '',
-      hidden: true,
-      icon: ''
-    }
   }
 ]

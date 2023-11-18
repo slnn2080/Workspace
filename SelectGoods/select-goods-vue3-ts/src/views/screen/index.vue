@@ -6,6 +6,8 @@ import DataHeader from './components/DataHeader.vue'
 import DataLTourist from './components/DataLTourist.vue'
 import DataLAge from './components/DataLAge.vue'
 import DataLSex from './components/DataLSex.vue'
+import DataMap from './components/DataMap.vue'
+import DataLine from './components/DataLine.vue'
 
 defineOptions({
   name: 'Screen'
@@ -53,7 +55,10 @@ window.addEventListener('resize', adjustDataTargetPosition)
           <DataLSex class="data-sex" />
           <DataLAge class="data-age" />
         </div>
-        <div class="data-bottom__center"></div>
+        <div class="data-bottom__center">
+          <DataMap class="map"></DataMap>
+          <DataLine class="line"></DataLine>
+        </div>
         <div class="data-bottom__right"></div>
       </div>
     </div>
@@ -118,10 +123,28 @@ window.addEventListener('resize', adjustDataTargetPosition)
       }
       &__center {
         flex: 2;
+        .map {
+          margin-top: 20px;
+          height: 66%;
+        }
+        .line {
+          margin-top: 20px;
+          height: 30%;
+        }
       }
       &__right {
         flex: 1;
         height: 1040px;
+
+        .data-1 {
+          flex: 1.2;
+        }
+        .data-2 {
+          flex: 1;
+        }
+        .data-3 {
+          flex: 1;
+        }
       }
     }
   }

@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import useRoutesStore from '@/store/routesStore'
+import useUserStore from '@/store/userStore'
 import useSettingStore from '@/store/settingStore'
 import { useRoute } from 'vue-router'
 
 import AppMenu from './AppMenu.vue'
 
 const route = useRoute()
-const routesStore = useRoutesStore()
+const userStore = useUserStore()
 
 defineOptions({
   name: 'AppSideBar'
@@ -28,7 +28,7 @@ const settingStore = useSettingStore()
         :collapse="settingStore.isCollapsed"
         :collapse-transition="false"
       >
-        <AppMenu :menuList="routesStore.meunRoutes" />
+        <AppMenu :menuList="userStore.menuRoutes" />
       </el-menu>
     </el-scrollbar>
   </div>

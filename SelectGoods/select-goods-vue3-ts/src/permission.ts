@@ -50,7 +50,10 @@ router.beforeEach(async (to, _, next) => {
         try {
           await userStore.getUserInfo()
           // 获取用户信息后我们再放行
-          return next()
+          // 万一刷新页面的时候 是异步路由 有可能我们获取到了用户信息但是异步路由还没有加载完毕 就会出现白屏 我们需要确保我们获取到了用户信息 并确保异步路由加载完毕再放行
+          // return next()
+          // 这种写法就能确保加载完后我们再放行
+          return next({ ...to })
         } catch (err) {
           /*
             没有用户信息 我们发起了请求 但是还没有拿到用户数据, 这里的情况就是token过期了, 只有token过期了 发请求才会拿不到数据
