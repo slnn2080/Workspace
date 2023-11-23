@@ -54,6 +54,15 @@ export const constantRoutes = [
       title: '数据大屏',
       icon: 'Platform'
     }
+  },
+  {
+    path: '/test',
+    component: () => import('@/views/test/index.vue'),
+    name: 'Test',
+    meta: {
+      hidden: false,
+      title: '测试页面'
+    }
   }
 ]
 

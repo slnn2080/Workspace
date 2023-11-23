@@ -19,12 +19,15 @@ import gloablComponent from './components/index'
 // 引入 路由鉴权 的文件 permission
 import './permission'
 
+import sizeDirect from '@/directive/sizeDirect.ts'
+
 // pinia 相关
 const pinia = createPinia()
 
-createApp(App)
-  .use(pinia)
-  .use(router)
-  .use(ElementPlus)
-  .use(gloablComponent)
-  .mount('#app')
+const app = createApp(App)
+app.directive('v-resize', sizeDirect)
+app.use(pinia)
+app.use(router)
+app.use(ElementPlus)
+app.use(gloablComponent)
+app.mount('#app')
