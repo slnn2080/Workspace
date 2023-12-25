@@ -63,6 +63,15 @@ export const constantRoutes = [
       hidden: false,
       title: '测试页面'
     }
+  },
+  {
+    path: '/gwes',
+    component: () => import('@/views/gwes/index.vue'),
+    name: 'GWES',
+    meta: {
+      hidden: false,
+      title: '测试页面'
+    }
   }
 ]
 
